@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import type { Person } from "../types";
 
@@ -8,118 +8,117 @@ type UsePeopleResult = {
   error: string | null;
   refresh: () => Promise<void>;
   createPerson: (params: { name: string; budget?: number | null }) => Promise<void>;
-  updatePerson: (id: string, updates: Partial<Pick<Person, "name" | "budget" | "is_manually_completed">>) => Promise<void>;
+  updatePerson: (
+    id: string,
+    updates: Partial<Pick<Person, "name" | "budget" | "is_manually_completed">>
+  ) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
 };
 
 export function usePeople(listId: string | null): UsePeopleResult {
   const [people, setPeople] = useState<Person[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(!!listId);
   const [error, setError] = useState<string | null>(null);
 
-  const loadPeople = async () => {
+  const loadPeople = useCallback(async () => {
     if (!listId) {
       setPeople([]);
+      setLoading(false);
       return;
     }
 
     setLoading(true);
     setError(null);
 
-    const { data, error } = await supabase
+    const { data, error: peopleError } = await supabase
       .from("people")
-      .select<Person[]>("id, list_id, name, budget, is_manually_completed, created_at, updated_at")
+      .select("*")
       .eq("list_id", listId)
       .order("name", { ascending: true });
 
+    if (peopleError) {
+      console.error("Error loading people", peopleError);
+      setError(peopleError.message);
+      setLoading(false);
+      return;
+    }
+
+    setPeople((data ?? []) as Person[]);
     setLoading(false);
+  }, [listId]);
 
-    if (error) {
-      console.error("Error loading people", error);
-      setError(error.message);
-      return;
-    }
+  useEffect(() => {
+    loadPeople();
+  }, [loadPeople]);
 
-    setPeople(data ?? []);
-  };
+  const createPerson = useCallback(
+    async (params: { name: string; budget?: number | null }) => {
+      if (!listId) {
+        setError("Cannot create person without list.");
+        return;
+      }
 
-  const createPerson = async (params: { name: string; budget?: number | null }) => {
-    if (!listId) return;
+      const { data, error: insertError } = await supabase
+        .from("people")
+        .insert({
+          list_id: listId,
+          name: params.name,
+          budget: params.budget ?? null,
+          is_manually_completed: false,
+        })
+        .select("*")
+        .single();
 
-    setError(null);
+      if (insertError) {
+        console.error("Error creating person", insertError);
+        setError(insertError.message);
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from("people")
-      .insert({
-        list_id: listId,
-        name: params.name,
-        budget: params.budget ?? null,
-      })
-      .select<Person[]>("id, list_id, name, budget, is_manually_completed, created_at, updated_at")
-      .single();
+      const newPerson = data as Person;
+      setPeople((prev) => [...prev, newPerson]);
+    },
+    [listId]
+  );
 
-    if (error) {
-      console.error("Error creating person", error);
-      setError(error.message);
-      return;
-    }
+  const updatePerson = useCallback(
+    async (
+      id: string,
+      updates: Partial<Pick<Person, "name" | "budget" | "is_manually_completed">>
+    ) => {
+      const { data, error: updateError } = await supabase
+        .from("people")
+        .update(updates)
+        .eq("id", id)
+        .select("*")
+        .single();
 
-    if (data) {
-      setPeople((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
-    }
-  };
+      if (updateError) {
+        console.error("Error updating person", updateError);
+        setError(updateError.message);
+        return;
+      }
 
-  const updatePerson = async (
-    id: string,
-    updates: Partial<Pick<Person, "name" | "budget" | "is_manually_completed">>
-  ) => {
-    setError(null);
+      const updated = data as Person;
+      setPeople((prev) => prev.map((p) => (p.id === id ? updated : p)));
+    },
+    []
+  );
 
-    const { data, error } = await supabase
-      .from("people")
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select<Person[]>("id, list_id, name, budget, is_manually_completed, created_at, updated_at")
-      .single();
-
-    if (error) {
-      console.error("Error updating person", error);
-      setError(error.message);
-      return;
-    }
-
-    if (data) {
-      setPeople((prev) => prev.map((p) => (p.id === id ? data : p)));
-    }
-  };
-
-  const deletePerson = async (id: string) => {
-    setError(null);
-
-    const { error } = await supabase
+  const deletePerson = useCallback(async (id: string) => {
+    const { error: deleteError } = await supabase
       .from("people")
       .delete()
       .eq("id", id);
 
-    if (error) {
-      console.error("Error deleting person", error);
-      setError(error.message);
+    if (deleteError) {
+      console.error("Error deleting person", deleteError);
+      setError(deleteError.message);
       return;
     }
 
     setPeople((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  useEffect(() => {
-    if (listId) {
-      loadPeople();
-    } else {
-      setPeople([]);
-    }
-  }, [listId]);
+  }, []);
 
   return {
     people,

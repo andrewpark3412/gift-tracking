@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import type { Gift, GiftStatus } from "../types";
 
@@ -14,133 +14,116 @@ type UseGiftsResult = {
     isWrapped?: boolean;
     notes?: string | null;
   }) => Promise<void>;
-  updateGift: (
-    id: string,
-    updates: Partial<Pick<Gift, "description" | "price" | "status" | "is_wrapped" | "notes">>
-  ) => Promise<void>;
+  updateGift: (id: string, updates: Partial<Gift>) => Promise<void>;
   deleteGift: (id: string) => Promise<void>;
 };
 
-export function useGifts(personId: string | null): UseGiftsResult {
+export function useGifts(personId: string): UseGiftsResult {
   const [gifts, setGifts] = useState<Gift[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(!!personId);
   const [error, setError] = useState<string | null>(null);
 
-  const loadGifts = async () => {
+  const loadGifts = useCallback(async () => {
     if (!personId) {
       setGifts([]);
+      setLoading(false);
       return;
     }
 
     setLoading(true);
     setError(null);
 
-    const { data, error } = await supabase
+    const { data, error: giftsError } = await supabase
       .from("gifts")
-      .select<Gift[]>(
-        "id, person_id, description, price, status, is_wrapped, notes, created_at, updated_at"
-      )
+      .select("*")
       .eq("person_id", personId)
       .order("created_at", { ascending: true });
 
+    if (giftsError) {
+      console.error("Error loading gifts", giftsError);
+      setError(giftsError.message);
+      setLoading(false);
+      return;
+    }
+
+    setGifts((data ?? []) as Gift[]);
     setLoading(false);
+  }, [personId]);
 
-    if (error) {
-      console.error("Error loading gifts", error);
-      setError(error.message);
-      return;
-    }
+  useEffect(() => {
+    loadGifts();
+  }, [loadGifts]);
 
-    setGifts(data ?? []);
-  };
+  const createGift = useCallback(
+    async (params: {
+      description: string;
+      price: number;
+      status: GiftStatus;
+      isWrapped?: boolean;
+      notes?: string | null;
+    }) => {
+      if (!personId) {
+        setError("Cannot create gift without person.");
+        return;
+      }
 
-  const createGift = async (params: {
-    description: string;
-    price: number;
-    status: GiftStatus;
-    isWrapped?: boolean;
-    notes?: string | null;
-  }) => {
-    if (!personId) return;
+      const { data, error: insertError } = await supabase
+        .from("gifts")
+        .insert({
+          person_id: personId,
+          description: params.description,
+          price: params.price,
+          status: params.status,
+          is_wrapped: params.isWrapped ?? false,
+          notes: params.notes ?? null,
+        })
+        .select("*")
+        .single();
 
-    setError(null);
+      if (insertError) {
+        console.error("Error creating gift", insertError);
+        setError(insertError.message);
+        return;
+      }
 
-    const { data, error } = await supabase
+      const newGift = data as Gift;
+      setGifts((prev) => [...prev, newGift]);
+    },
+    [personId]
+  );
+
+  const updateGift = useCallback(async (id: string, updates: Partial<Gift>) => {
+    const { data, error: updateError } = await supabase
       .from("gifts")
-      .insert({
-        person_id: personId,
-        description: params.description,
-        price: params.price,
-        status: params.status,
-        is_wrapped: params.isWrapped ?? false,
-        notes: params.notes ?? null,
-      })
-      .select<Gift[]>(
-        "id, person_id, description, price, status, is_wrapped, notes, created_at, updated_at"
-      )
-      .single();
-
-    if (error) {
-      console.error("Error creating gift", error);
-      setError(error.message);
-      return;
-    }
-
-    if (data) {
-      setGifts((prev) => [...prev, data]);
-    }
-  };
-
-  const updateGift = async (
-    id: string,
-    updates: Partial<Pick<Gift, "description" | "price" | "status" | "is_wrapped" | "notes">>
-  ) => {
-    setError(null);
-
-    const { data, error } = await supabase
-      .from("gifts")
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq("id", id)
-      .select<Gift[]>(
-        "id, person_id, description, price, status, is_wrapped, notes, created_at, updated_at"
-      )
+      .select("*")
       .single();
 
-    if (error) {
-      console.error("Error updating gift", error);
-      setError(error.message);
+    if (updateError) {
+      console.error("Error updating gift", updateError);
+      setError(updateError.message);
       return;
     }
 
-    if (data) {
-      setGifts((prev) => prev.map((g) => (g.id === id ? data : g)));
-    }
-  };
+    const updated = data as Gift;
+    setGifts((prev) => prev.map((g) => (g.id === id ? updated : g)));
+  }, []);
 
-  const deleteGift = async (id: string) => {
-    setError(null);
+  const deleteGift = useCallback(async (id: string) => {
+    const { error: deleteError } = await supabase
+      .from("gifts")
+      .delete()
+      .eq("id", id);
 
-    const { error } = await supabase.from("gifts").delete().eq("id", id);
-
-    if (error) {
-      console.error("Error deleting gift", error);
-      setError(error.message);
+    if (deleteError) {
+      console.error("Error deleting gift", deleteError);
+      setError(deleteError.message);
       return;
     }
 
     setGifts((prev) => prev.filter((g) => g.id !== id));
-  };
-
-  useEffect(() => {
-    if (personId) {
-      loadGifts();
-    } else {
-      setGifts([]);
-    }
-  }, [personId]);
+  }, []);
 
   return {
     gifts,

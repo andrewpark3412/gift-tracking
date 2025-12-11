@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import type { List, ListVisibility } from "../types";
 
@@ -7,130 +7,124 @@ type UseListsResult = {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  createList: (params: { name: string; year: number; visibility: ListVisibility }) => Promise<void>;
-  updateList: (id: string, updates: Partial<Pick<List, "name" | "year" | "visibility">>) => Promise<void>;
+  createList: (params: {
+    name: string;
+    year: number;
+    visibility: ListVisibility;
+  }) => Promise<void>;
+  updateList: (id: string, updates: Partial<List>) => Promise<void>;
   deleteList: (id: string) => Promise<void>;
 };
 
-export function useLists(householdId: string | null, userId: string | null): UseListsResult {
+export function useLists(
+  householdId: string | null,
+  userId: string | null
+): UseListsResult {
   const [lists, setLists] = useState<List[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(!!householdId);
   const [error, setError] = useState<string | null>(null);
 
-  const loadLists = async () => {
-    if (!householdId || !userId) {
+  const loadLists = useCallback(async () => {
+    if (!householdId) {
       setLists([]);
+      setLoading(false);
       return;
     }
 
     setLoading(true);
     setError(null);
 
-    const { data, error } = await supabase
+    const { data, error: listsError } = await supabase
       .from("lists")
-      .select<List[]>("id, household_id, owner_user_id, name, year, visibility, created_at, updated_at")
+      .select("*")
       .eq("household_id", householdId)
-      .order("year", { ascending: false })
-      .order("name", { ascending: true });
+      .order("year", { ascending: false });
 
+    if (listsError) {
+      console.error("Error loading lists", listsError);
+      setError(listsError.message);
+      setLoading(false);
+      return;
+    }
+
+    setLists((data ?? []) as List[]);
     setLoading(false);
+  }, [householdId]);
 
-    if (error) {
-      console.error("Error loading lists", error);
-      setError(error.message);
-      return;
-    }
+  useEffect(() => {
+    loadLists();
+  }, [loadLists]);
 
-    setLists(data ?? []);
-  };
+  const createList = useCallback(
+    async (params: {
+      name: string;
+      year: number;
+      visibility: ListVisibility;
+    }) => {
+      if (!householdId || !userId) {
+        setError("Cannot create list without household and user.");
+        return;
+      }
 
-  const createList = async (params: { name: string; year: number; visibility: ListVisibility }) => {
-    if (!householdId || !userId) return;
+      const { data, error: insertError } = await supabase
+        .from("lists")
+        .insert({
+          household_id: householdId,
+          owner_user_id: userId,
+          name: params.name,
+          year: params.year,
+          visibility: params.visibility,
+        })
+        .select("*")
+        .single();
 
-    setError(null);
+      if (insertError) {
+        console.error("Error creating list", insertError);
+        setError(insertError.message);
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from("lists")
-      .insert({
-        household_id: householdId,
-        owner_user_id: userId,
-        name: params.name,
-        year: params.year,
-        visibility: params.visibility,
-      })
-      .select<List[]>("id, household_id, owner_user_id, name, year, visibility, created_at, updated_at")
-      .single();
+      const newList = data as List;
+      setLists((prev) => [...prev, newList]);
+    },
+    [householdId, userId]
+  );
 
-    if (error) {
-      console.error("Error creating list", error);
-      setError(error.message);
-      return;
-    }
+  const updateList = useCallback(
+    async (id: string, updates: Partial<List>) => {
+      const { data, error: updateError } = await supabase
+        .from("lists")
+        .update(updates)
+        .eq("id", id)
+        .select("*")
+        .single();
 
-    if (data) {
-      setLists((prev) => [data, ...prev]);
-    }
-  };
+      if (updateError) {
+        console.error("Error updating list", updateError);
+        setError(updateError.message);
+        return;
+      }
 
-  const updateList = async (
-    id: string,
-    updates: Partial<Pick<List, "name" | "year" | "visibility">>
-  ) => {
-    setError(null);
+      const updated = data as List;
+      setLists((prev) => prev.map((l) => (l.id === id ? updated : l)));
+    },
+    []
+  );
 
-    const { data, error } = await supabase
-      .from("lists")
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select<List[]>("id, household_id, owner_user_id, name, year, visibility, created_at, updated_at")
-      .single();
-
-    if (error) {
-      console.error("Error updating list", error);
-      setError(error.message);
-      return;
-    }
-
-    if (data) {
-      setLists((prev) => prev.map((l) => (l.id === id ? data : l)));
-    }
-  };
-
-  const deleteList = async (id: string) => {
-    setError(null);
-
-    const { error } = await supabase
+  const deleteList = useCallback(async (id: string) => {
+    const { error: deleteError } = await supabase
       .from("lists")
       .delete()
       .eq("id", id);
 
-    if (error) {
-      console.error("Error deleting list", error);
-      setError(error.message);
+    if (deleteError) {
+      console.error("Error deleting list", deleteError);
+      setError(deleteError.message);
       return;
     }
 
     setLists((prev) => prev.filter((l) => l.id !== id));
-  };
+  }, []);
 
-  useEffect(() => {
-    if (householdId && userId) {
-      loadLists();
-    } else {
-      setLists([]);
-    }
-  }, [householdId, userId]);
-
-  return {
-    lists,
-    loading,
-    error,
-    refresh: loadLists,
-    createList,
-    updateList,
-    deleteList,
-  };
+  return { lists, loading, error, refresh: loadLists, createList, updateList, deleteList };
 }

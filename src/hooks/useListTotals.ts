@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabaseClient";
 import type { GiftStatus } from "../types";
 
 type ListTotals = {
   totalBudget: number;
   totalSpent: number;
-  remainingBudget: number | null; // null if no budgets set at all
+  remainingBudget: number | null;
   peopleCount: number;
   overBudgetPeopleCount: number;
 };
@@ -33,7 +33,7 @@ export function useListTotals(listId: string | null): UseListTotalsResult {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadTotals = async () => {
+  const loadTotals = useCallback(async () => {
     if (!listId) {
       setTotals(null);
       return;
@@ -42,10 +42,10 @@ export function useListTotals(listId: string | null): UseListTotalsResult {
     setLoading(true);
     setError(null);
 
-    // 1) Load people for this list (id + budget)
-    const { data: people, error: peopleError } = await supabase
+    // 1) Load people for this list
+    const { data: peopleData, error: peopleError } = await supabase
       .from("people")
-      .select<PersonLite[]>("id, budget")
+      .select("id, budget")
       .eq("list_id", listId);
 
     if (peopleError) {
@@ -55,11 +55,11 @@ export function useListTotals(listId: string | null): UseListTotalsResult {
       return;
     }
 
-    const personIds = (people ?? []).map((p) => p.id);
+    const people = (peopleData ?? []) as PersonLite[];
+    const personIds = people.map((p) => p.id);
     const peopleById = new Map<string, PersonLite>();
-    (people ?? []).forEach((p) => peopleById.set(p.id, p));
+    people.forEach((p) => peopleById.set(p.id, p));
 
-    // If no people, totals are just zeros
     if (personIds.length === 0) {
       setTotals({
         totalBudget: 0,
@@ -73,9 +73,9 @@ export function useListTotals(listId: string | null): UseListTotalsResult {
     }
 
     // 2) Load gifts for these people
-    const { data: gifts, error: giftsError } = await supabase
+    const { data: giftsData, error: giftsError } = await supabase
       .from("gifts")
-      .select<GiftLite[]>("person_id, price, status")
+      .select("person_id, price, status")
       .in("person_id", personIds);
 
     if (giftsError) {
@@ -85,13 +85,14 @@ export function useListTotals(listId: string | null): UseListTotalsResult {
       return;
     }
 
-    // 3) Compute totals in JS
+    const gifts = (giftsData ?? []) as GiftLite[];
+
+    // 3) Compute totals
     let totalBudget = 0;
     let anyBudgetSet = false;
-
     const spentByPerson = new Map<string, number>();
 
-    (people ?? []).forEach((p) => {
+    people.forEach((p) => {
       if (p.budget != null) {
         anyBudgetSet = true;
         totalBudget += Number(p.budget) || 0;
@@ -99,13 +100,10 @@ export function useListTotals(listId: string | null): UseListTotalsResult {
       spentByPerson.set(p.id, 0);
     });
 
-    (gifts ?? []).forEach((g) => {
+    gifts.forEach((g) => {
       if (g.status === "purchased") {
         const current = spentByPerson.get(g.person_id) ?? 0;
-        spentByPerson.set(
-          g.person_id,
-          current + (Number(g.price) || 0)
-        );
+        spentByPerson.set(g.person_id, current + (Number(g.price) || 0));
       }
     });
 
@@ -120,29 +118,22 @@ export function useListTotals(listId: string | null): UseListTotalsResult {
       }
     });
 
-    const remainingBudget =
-      anyBudgetSet ? totalBudget - totalSpent : null;
+    const remainingBudget = anyBudgetSet ? totalBudget - totalSpent : null;
 
     setTotals({
       totalBudget,
       totalSpent,
       remainingBudget,
-      peopleCount: people?.length ?? 0,
+      peopleCount: people.length,
       overBudgetPeopleCount,
     });
 
     setLoading(false);
-  };
+  }, [listId]);
 
   useEffect(() => {
     loadTotals();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listId]);
+  }, [loadTotals]);
 
-  return {
-    totals,
-    loading,
-    error,
-    refresh: loadTotals,
-  };
+  return { totals, loading, error, refresh: loadTotals };
 }

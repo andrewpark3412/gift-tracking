@@ -8,7 +8,6 @@ import { usePeople } from "./hooks/usePeople";
 import { useGifts } from "./hooks/useGifts";
 
 import type {
-  Household,
   List,
   ListVisibility,
   Person,
@@ -622,6 +621,7 @@ function App() {
           />
         )}
       </main>
+      <EnvBadge />
       <InstallBanner />
     </div>
   );
@@ -1080,6 +1080,23 @@ function GiftRow({ gift, onToggleStatus, onToggleWrapped, onDelete }: GiftRowPro
         </button>
       </div>
     </li>
+  );
+}
+
+function EnvBadge() {
+  const mode = import.meta.env.MODE; // "development", "production", "test", etc.
+
+  // Hide in production; show in dev/preview
+  if (mode === "production") return null;
+
+  const label = mode.toUpperCase();
+  const colorClass =
+    mode === "development" ? "bg-amber-500" : "bg-sky-500";
+
+  return (
+    <div className={`fixed top-2 right-2 z-50 px-2 py-1 text-[10px] rounded-full ${colorClass} text-white shadow`}>
+      {label}
+    </div>
   );
 }
 
