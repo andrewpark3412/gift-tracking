@@ -344,22 +344,27 @@ function App() {
 
   // Logged in with a household → main UI
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="bg-white shadow-sm">
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 text-slate-900">
+      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold">
-              🎄 Christmas Gift Tracker
-            </h1>
-            {currentHousehold && (
-              <p className="text-xs text-slate-500">
-                Household: {currentHousehold.name}
-              </p>
-            )}
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/40">
+              <span className="text-xl">🎄</span>
+            </div>
+            <div>
+              <h1 className="text-base font-semibold text-slate-50">
+                Christmas Gift Tracker
+              </h1>
+              {currentHousehold && (
+                <p className="text-[11px] text-slate-400">
+                  Household: <span className="font-medium">{currentHousehold.name}</span>
+                </p>
+              )}
+            </div>
           </div>
           <button
             onClick={handleSignOut}
-            className="text-sm text-slate-600 hover:text-slate-900"
+            className="text-xs px-3 py-1.5 rounded-full border border-slate-600 text-slate-200 hover:bg-slate-800"
           >
             Sign out
           </button>
@@ -452,10 +457,10 @@ function App() {
             {lists.map((list) => (
               <li
                 key={list.id}
-                className={`border rounded-md px-4 py-2 flex items-center justify-between cursor-pointer ${
+                className={`border rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer transition-colors ${
                   selectedListId === list.id
                     ? "bg-emerald-50 border-emerald-300"
-                    : ""
+                    : "bg-white hover:bg-slate-50/80 border-slate-200"
                 }`}
                 onClick={() => {
                   setSelectedListId(list.id);
@@ -465,13 +470,27 @@ function App() {
                 }}
               >
                 <div>
-                  <p className="font-medium">{list.name}</p>
-                  <p className="text-xs text-slate-500">
-                    Year: {list.year} • Visibility:{" "}
-                    <span className="font-medium">
-                      {list.visibility === "household"
-                        ? "Household"
-                        : "Private"}
+                  <p className="font-medium flex items-center gap-2">
+                    <span>{list.name}</span>
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                      {list.year}
+                    </span>
+                    {selectedListId === list.id && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                        Active
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Visibility:{" "}
+                    <span
+                      className={
+                        list.visibility === "household"
+                          ? "font-medium text-emerald-700"
+                          : "font-medium text-slate-600"
+                      }
+                    >
+                      {list.visibility === "household" ? "Household list" : "Private list"}
                     </span>
                   </p>
                 </div>
@@ -481,7 +500,7 @@ function App() {
                 >
                   <button
                     type="button"
-                    className="text-xs px-2 py-1 border rounded-md hover:bg-slate-50"
+                    className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
                     onClick={() =>
                       handleToggleVisibility(list.id, list.visibility)
                     }
@@ -490,14 +509,14 @@ function App() {
                   </button>
                   <button
                     type="button"
-                    className="text-xs px-2 py-1 border rounded-md hover:bg-slate-50"
+                    className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
                     onClick={() => handleDuplicateList(list)}
                   >
                     Duplicate next year
                   </button>
                   <button
                     type="button"
-                    className="text-xs px-2 py-1 border border-red-500 text-red-600 rounded-md hover:bg-red-50"
+                    className="text-[11px] px-2 py-1 border border-red-500 text-red-600 rounded-full hover:bg-red-50"
                     onClick={() => {
                       if (
                         window.confirm(
@@ -757,11 +776,15 @@ function PersonRow({
   onToggleCompleted,
   onDelete,
 }: PersonRowProps) {
+  const completed = person.is_manually_completed;
+
   return (
     <li
-      className={`border rounded-md px-4 py-2 flex items-center justify-between ${
-        isSelected ? "bg-emerald-50 border-emerald-300" : ""
-      }`}
+      className={`border rounded-xl px-4 py-3 flex items-center justify-between transition-colors ${
+        isSelected
+          ? "bg-emerald-50 border-emerald-300"
+          : "bg-white hover:bg-slate-50 border-slate-200"
+      } ${completed ? "border-l-4 border-l-emerald-500" : ""}`}
     >
       <div>
         <p className="font-medium flex items-center gap-2">
@@ -772,33 +795,38 @@ function PersonRow({
           >
             {person.name}
           </button>
-          {person.is_manually_completed && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-              Completed
+          {completed && (
+            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+              <span>✅</span>
+              <span>Completed</span>
             </span>
           )}
         </p>
-        <p className="text-xs text-slate-500">
+        <p className="text-[11px] text-slate-500 mt-0.5">
           Budget:{" "}
-          {person.budget != null
-            ? `$${person.budget.toFixed(2)}`
-            : "No budget set"}
+          {person.budget != null ? (
+            <span className="font-medium">
+              ${person.budget.toFixed(2)}
+            </span>
+          ) : (
+            <span className="italic text-slate-400">No budget set</span>
+          )}
         </p>
-        <p className="text-xs text-slate-400 italic">
-          Click name to manage gifts and see totals.
+        <p className="text-[11px] text-slate-400 italic mt-0.5">
+          Tap name to manage gifts and see totals.
         </p>
       </div>
       <div className="flex items-center gap-2">
         <button
           type="button"
-          className="text-xs px-2 py-1 border rounded-md hover:bg-slate-50"
+          className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
           onClick={onToggleCompleted}
         >
-          {person.is_manually_completed ? "Mark not complete" : "Mark completed"}
+          {completed ? "Mark not complete" : "Mark completed"}
         </button>
         <button
           type="button"
-          className="text-xs px-2 py-1 border border-red-500 text-red-600 rounded-md hover:bg-red-50"
+          className="text-[11px] px-2 py-1 border border-red-500 text-red-600 rounded-full hover:bg-red-50"
           onClick={onDelete}
         >
           Delete
@@ -1068,39 +1096,54 @@ type GiftRowProps = {
 };
 
 function GiftRow({ gift, onToggleStatus, onToggleWrapped, onDelete }: GiftRowProps) {
+  const isIdea = gift.status === "idea";
+  const isPurchased = gift.status === "purchased";
+
   return (
-    <li className="border rounded-md px-4 py-2 flex items-center justify-between">
+    <li className="border rounded-xl px-4 py-3 flex items-center justify-between bg-white hover:bg-slate-50 transition-colors">
       <div>
         <p className="font-medium flex items-center gap-2">
-          {gift.description}
-          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-            {gift.status === "idea" ? "Idea" : "Purchased"}
+          <span className={isIdea ? "text-slate-700" : "text-slate-900"}>
+            {gift.description}
           </span>
-          {gift.status === "purchased" && gift.is_wrapped && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-              Wrapped
+          <span
+            className={
+              "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] " +
+              (isIdea
+                ? "bg-slate-100 text-slate-700"
+                : "bg-emerald-100 text-emerald-700")
+            }
+          >
+            {isIdea ? "Idea" : "Purchased"}
+          </span>
+          {isPurchased && gift.is_wrapped && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700">
+              <span>🎁</span>
+              <span>Wrapped</span>
             </span>
           )}
         </p>
-        <p className="text-xs text-slate-500">
+        <p className="text-[11px] text-slate-500 mt-0.5">
           Price: ${Number(gift.price).toFixed(2)}
         </p>
         {gift.notes && (
-          <p className="text-xs text-slate-500">Notes: {gift.notes}</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Notes: {gift.notes}
+          </p>
         )}
       </div>
       <div className="flex items-center gap-2">
         <button
           type="button"
-          className="text-xs px-2 py-1 border rounded-md hover:bg-slate-50"
+          className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
           onClick={onToggleStatus}
         >
-          {gift.status === "idea" ? "Mark purchased" : "Mark idea"}
+          {isIdea ? "Mark purchased" : "Mark idea"}
         </button>
-        {gift.status === "purchased" && (
+        {isPurchased && (
           <button
             type="button"
-            className="text-xs px-2 py-1 border rounded-md hover:bg-slate-50"
+            className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
             onClick={onToggleWrapped}
           >
             {gift.is_wrapped ? "Unwrap" : "Mark wrapped"}
@@ -1108,7 +1151,7 @@ function GiftRow({ gift, onToggleStatus, onToggleWrapped, onDelete }: GiftRowPro
         )}
         <button
           type="button"
-          className="text-xs px-2 py-1 border border-red-500 text-red-600 rounded-md hover:bg-red-50"
+          className="text-[11px] px-2 py-1 border border-red-500 text-red-600 rounded-full hover:bg-red-50"
           onClick={onDelete}
         >
           Delete
