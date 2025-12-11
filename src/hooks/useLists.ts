@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-import type { List, ListVisibility } from "../types";
+import type { List, ListVisibility, Person } from "../types";
 
 type UseListsResult = {
   lists: List[];
@@ -14,6 +14,10 @@ type UseListsResult = {
   }) => Promise<void>;
   updateList: (id: string, updates: Partial<List>) => Promise<void>;
   deleteList: (id: string) => Promise<void>;
+  duplicateList: (
+    sourceListId: string,
+    opts?: { newName?: string; newYear?: number }
+  ) => Promise<List | null>;
 };
 
 export function useLists(
@@ -126,5 +130,102 @@ export function useLists(
     setLists((prev) => prev.filter((l) => l.id !== id));
   }, []);
 
-  return { lists, loading, error, refresh: loadLists, createList, updateList, deleteList };
+  const duplicateList = useCallback(
+    async (
+      sourceListId: string,
+      opts?: { newName?: string; newYear?: number }
+    ): Promise<List | null> => {
+      const source = lists.find((l) => l.id === sourceListId);
+      if (!source) {
+        console.error("duplicateList: source list not found");
+        setError("Source list not found.");
+        return null;
+      }
+
+      const nextYear = opts?.newYear ?? source.year + 1;
+
+      // Try to smart-replace the year in the name; if not present, append
+      const yearStr = String(source.year);
+      let suggestedName = source.name.includes(yearStr)
+        ? source.name.replace(yearStr, String(nextYear))
+        : `${source.name} ${nextYear}`;
+
+      const newName = opts?.newName ?? suggestedName;
+
+      // 1) Create the new list
+      const { data: createdList, error: createError } = await supabase
+        .from("lists")
+        .insert({
+          household_id: source.household_id,
+          owner_user_id: source.owner_user_id,
+          name: newName,
+          year: nextYear,
+          visibility: source.visibility,
+        })
+        .select("*")
+        .single();
+
+      if (createError) {
+        console.error("Error duplicating list (create new list)", createError);
+        setError(createError.message);
+        return null;
+      }
+
+      const newList = createdList as List;
+
+      // 2) Load people from the source list
+      const { data: peopleData, error: peopleError } = await supabase
+        .from("people")
+        .select("*")
+        .eq("list_id", source.id);
+
+      if (peopleError) {
+        console.error("Error loading people for duplicate", peopleError);
+        setError(peopleError.message);
+        // Still return the new list even if people copy fails
+        setLists((prev) => [...prev, newList]);
+        return newList;
+      }
+
+      const sourcePeople = (peopleData ?? []) as Person[];
+
+      if (sourcePeople.length > 0) {
+        const insertPayload = sourcePeople.map((p) => ({
+          list_id: newList.id,
+          name: p.name,
+          budget: p.budget,
+          is_manually_completed: false, // reset completion
+        }));
+
+        const { error: insertPeopleError } = await supabase
+          .from("people")
+          .insert(insertPayload);
+
+        if (insertPeopleError) {
+          console.error(
+            "Error inserting duplicated people for new list",
+            insertPeopleError
+          );
+          setError(insertPeopleError.message);
+        }
+      }
+
+      // Update local lists state
+      setLists((prev) => [...prev, newList]);
+
+      return newList;
+    },
+    [lists]
+  );
+
+  return {
+    lists,
+    loading,
+    error,
+    refresh: loadLists,
+    createList,
+    updateList,
+    deleteList,
+    duplicateList,
+  };
 }

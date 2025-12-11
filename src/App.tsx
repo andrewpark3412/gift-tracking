@@ -44,6 +44,7 @@ function App() {
     createList,
     updateList,
     deleteList,
+    duplicateList,
     refresh: refreshLists,
   } = useLists(currentHousehold?.id ?? null, userId);
 
@@ -181,6 +182,33 @@ function App() {
     const next: ListVisibility =
       currentVisibility === "household" ? "private" : "household";
     await updateList(id, { visibility: next });
+  };
+
+  const handleDuplicateList = async (list: List) => {
+    const nextYear = list.year + 1;
+
+    // Try to auto-suggest a good new name
+    const yearStr = String(list.year);
+    let suggestedName = list.name.includes(yearStr)
+      ? list.name.replace(yearStr, String(nextYear))
+      : `${list.name} ${nextYear}`;
+
+    const confirmMsg = `Create a ${nextYear} list by copying people (and budgets) from "${list.name}" to "${suggestedName}"?\n\nGifts will NOT be copied.`;
+    const proceed = window.confirm(confirmMsg);
+    if (!proceed) return;
+
+    const newList = await duplicateList(list.id, {
+      newName: suggestedName,
+      newYear: nextYear,
+    });
+
+    if (!newList) return;
+
+    // Auto-select the new list in the UI
+    setSelectedListId(newList.id);
+    setSelectedList(newList);
+    setSelectedPersonId(null);
+    setSelectedPerson(null);
   };
 
   // Session check
@@ -459,6 +487,13 @@ function App() {
                     }
                   >
                     Toggle visibility
+                  </button>
+                  <button
+                    type="button"
+                    className="text-xs px-2 py-1 border rounded-md hover:bg-slate-50"
+                    onClick={() => handleDuplicateList(list)}
+                  >
+                    Duplicate next year
                   </button>
                   <button
                     type="button"
