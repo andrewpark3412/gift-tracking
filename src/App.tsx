@@ -1103,123 +1103,121 @@ function EnvBadge() {
 import { useEffect } from "react";
 import { usePWAInstallPrompt } from "./hooks/usePWAInstallPrompt";
 
-const INSTALL_BANNER_STORAGE_KEY = "gt_install_banner_dismissed";
+/* ---------- InstallBanner ---------- */
 
 function InstallBanner() {
-  const { isInstallable, isStandalone, triggerInstall } =
+  const { isInstallable, isStandalone, promptInstall } =
     usePWAInstallPrompt();
 
-  const [dismissed, setDismissed] = useState(false);
   const [delayPassed, setDelayPassed] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
-  // Delay showing the banner a bit so it feels less aggressive
   useEffect(() => {
-    const timer = setTimeout(() => setDelayPassed(true), 3000);
+    const dismissedFlag =
+      window.localStorage.getItem("gt_install_banner_dismissed") === "1";
+    setDismissed(dismissedFlag);
+
+    const timer = setTimeout(() => {
+      setDelayPassed(true);
+      console.log("[PWA] InstallBanner delay passed");
+    }, 3000);
+
     return () => clearTimeout(timer);
   }, []);
 
-  // Persist "don't show again" choice
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(
-        INSTALL_BANNER_STORAGE_KEY
-      );
-      if (stored === "1") {
-        setDismissed(true);
-      }
-    } catch {
-      // ignore localStorage errors
-    }
-  }, []);
+    console.log(
+      "[PWA] banner state ->",
+      "delayPassed:",
+      delayPassed,
+      "dismissed:",
+      dismissed,
+      "isStandalone:",
+      isStandalone,
+      "isInstallable:",
+      isInstallable
+    );
+  }, [delayPassed, dismissed, isStandalone, isInstallable]);
+
+  if (!delayPassed || dismissed || isStandalone) {
+    return null;
+  }
+
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPhone|iPad|iPod/.test(ua) && /Safari/.test(ua);
 
   const handleDismiss = () => {
     setDismissed(true);
     try {
-      window.localStorage.setItem(INSTALL_BANNER_STORAGE_KEY, "1");
+      window.localStorage.setItem("gt_install_banner_dismissed", "1");
     } catch {
       // ignore
     }
   };
 
-  const handleInstallClick = async () => {
-    const accepted = await triggerInstall();
-    if (accepted) {
-      handleDismiss();
-    }
-  };
-
-  if (!delayPassed || dismissed || isStandalone) return null;
-
-  const isIOS =
-    /iphone|ipod|ipad/i.test(window.navigator.userAgent) &&
-    // @ts-ignore
-    !window.MSStream;
-
-  // If browser supports beforeinstallprompt → show Install UI
-  if (isInstallable) {
-    return (
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur border border-slate-200 shadow-lg rounded-2xl px-4 py-3 flex items-center gap-3 z-50 max-w-lg">
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-slate-900">
-            Install Christmas Gift Tracker
-          </p>
-          <p className="text-xs text-slate-500">
-            Add it to your home screen for faster access during gift season.
-          </p>
+  // If the browser fired beforeinstallprompt → show "Install" button.
+  // If not, we still show an "How to install" card so you can install manually.
+  return (
+    <div className="fixed bottom-3 inset-x-0 px-4 z-40 pointer-events-none">
+      <div className="pointer-events-auto max-w-xl mx-auto bg-slate-900 text-white rounded-2xl shadow-lg p-3 flex items-center gap-3">
+        <div className="flex-1 text-xs">
+          {isInstallable ? (
+            <>
+              <p className="font-semibold text-sm mb-0.5">
+                Install Christmas Gift Tracker
+              </p>
+              <p className="opacity-80">
+                Add this app to your home screen for quick access and a
+                full-screen experience.
+              </p>
+            </>
+          ) : isIOS ? (
+            <>
+              <p className="font-semibold text-sm mb-0.5">
+                Add Gift Tracker to Home Screen
+              </p>
+              <p className="opacity-80">
+                Tap the <span className="font-semibold">Share</span> button
+                in Safari, then choose{" "}
+                <span className="font-semibold">Add to Home Screen</span>.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold text-sm mb-0.5">
+                Install Christmas Gift Tracker
+              </p>
+              <p className="opacity-80">
+                In your browser menu, choose{" "}
+                <span className="font-semibold">
+                  &ldquo;Install app&rdquo; / &ldquo;Add to Home screen&rdquo;
+                </span>{" "}
+                to pin this app for quick access.
+              </p>
+            </>
+          )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-1">
+          {isInstallable && (
+            <button
+              type="button"
+              onClick={promptInstall}
+              className="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-400"
+            >
+              Install
+            </button>
+          )}
           <button
             type="button"
             onClick={handleDismiss}
-            className="text-[11px] text-slate-500 hover:text-slate-700"
+            className="px-3 py-1 rounded-full border border-slate-500 text-slate-200 text-[10px] hover:bg-slate-800"
           >
             Not now
           </button>
-          <button
-            type="button"
-            onClick={handleInstallClick}
-            className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700"
-          >
-            Install
-          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleDismiss}
-          className="ml-1 text-slate-400 hover:text-slate-600 text-xs"
-          aria-label="Close install banner"
-        >
-          ✕
-        </button>
       </div>
-    );
-  }
-
-  // Fallback for iOS Safari (no beforeinstallprompt)
-  if (isIOS) {
-    return (
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur border border-slate-200 shadow-md rounded-2xl px-4 py-3 flex items-center gap-3 z-40 max-w-lg">
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-slate-900">
-            Add Gift Tracker to Home Screen
-          </p>
-          <p className="text-xs text-slate-500">
-            Tap the <span className="font-semibold">Share</span> button, then
-            choose <span className="font-semibold">“Add to Home Screen”</span>.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={handleDismiss}
-          className="text-[11px] text-slate-500 hover:text-slate-700"
-        >
-          Got it
-        </button>
-      </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 }
 
 export default App;
