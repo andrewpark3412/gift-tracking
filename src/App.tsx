@@ -6,6 +6,7 @@ import { useLists } from "./hooks/useLists";
 import { useListTotals } from "./hooks/useListTotals";
 import { usePeople } from "./hooks/usePeople";
 import { useGifts } from "./hooks/useGifts";
+import { useWrappingDashboard } from "./hooks/useWrappingDashboard";
 
 import type {
   List,
@@ -23,6 +24,7 @@ function App() {
   const [authPassword, setAuthPassword] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [creatingAccount, setCreatingAccount] = useState(false);
+  const [viewMode, setViewMode] = useState<"people" | "wrapping">("people");
 
   // Household
   const {
@@ -69,6 +71,14 @@ function App() {
     deletePerson,
     refresh: refreshPeople,
   } = usePeople(selectedListId);
+
+    const {
+      groups: wrappingGroups,
+      loading: wrappingLoading,
+      error: wrappingError,
+      refresh: refreshWrapping,
+      markGiftWrapped,
+    } = useWrappingDashboard(selectedListId);
 
   const handleCreatePerson = async (params: { name: string; budget?: number | null }) => {
     await createPerson(params);
@@ -467,6 +477,7 @@ function App() {
                   setSelectedList(list);
                   setSelectedPersonId(null);
                   setSelectedPerson(null);
+                  setViewMode("people");
                 }}
               >
                 <div>
@@ -547,24 +558,52 @@ function App() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h2 className="text-xl font-semibold">
-                  People – {selectedList.name}
+                  {viewMode === "people" ? "People" : "Wrapping view"} –{" "}
+                  {selectedList.name}
                 </h2>
                 <p className="text-xs text-slate-500">
                   Year: {selectedList.year}
                 </p>
               </div>
-              <button
-                onClick={async () => {
-                  await refreshPeople();
-                  await refreshListTotals();
-                }}
-                className="text-xs px-3 py-1 rounded-md bg-slate-900 text-white hover:bg-slate-800"
-              >
-                Refresh
-              </button>
+              <div className="flex items-center gap-3">
+                <div className="inline-flex items-center rounded-full bg-slate-100 p-1 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("people")}
+                    className={`px-2 py-1 rounded-full ${
+                      viewMode === "people"
+                        ? "bg-white shadow text-slate-900"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    People
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("wrapping")}
+                    className={`px-2 py-1 rounded-full ${
+                      viewMode === "wrapping"
+                        ? "bg-white shadow text-slate-900"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    Wrapping
+                  </button>
+                </div>
+                <button
+                  onClick={async () => {
+                    await refreshPeople();
+                    await refreshListTotals();
+                    await refreshWrapping();
+                  }}
+                  className="text-xs px-3 py-1 rounded-md bg-slate-900 text-white hover:bg-slate-800"
+                >
+                  Refresh
+                </button>
+              </div>
             </div>
 
-                        {/* List summary */}
+            {/* List summary */}
             <div className="mb-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
               {listTotalsLoading && <p>Calculating list totals…</p>}
               {listTotalsError && (
@@ -617,57 +656,85 @@ function App() {
 
             <AddPersonForm onAdd={handleCreatePerson} />
 
-            {peopleError && (
-              <p className="text-xs text-red-600 mb-2">Error: {peopleError}</p>
-            )}
+            {viewMode === "people" && (
+              <>
+                <AddPersonForm onAdd={handleCreatePerson} />
 
-            {peopleLoading && (
-              <p className="text-sm text-slate-600">Loading people…</p>
-            )}
+                {peopleError && (
+                  <p className="text-xs text-red-600 mb-2">
+                    Error: {peopleError}
+                  </p>
+                )}
 
-            {!peopleLoading && people.length === 0 && (
-              <p className="text-sm text-slate-600">
-                No people added yet. Use the form above to add someone (e.g.,
-                &quot;Mom&quot;, &quot;Dad&quot;, &quot;Kids&quot;).
-              </p>
-            )}
+                {peopleLoading && (
+                  <p className="text-sm text-slate-600">
+                    Loading people…
+                  </p>
+                )}
 
-            <ul className="mt-3 space-y-2">
-              {people.map((person) => (
-                <PersonRow
-                  key={person.id}
-                  person={person}
-                  isSelected={selectedPersonId === person.id}
-                  onSelect={() => {
-                    setSelectedPersonId(person.id);
-                    setSelectedPerson(person);
-                  }}
-                  onToggleCompleted={() =>
-                    handleUpdatePerson(person.id, {
-                      is_manually_completed: !person.is_manually_completed,
-                    })
-                  }
-                  onDelete={async () => {
-                    if (
-                      window.confirm(
-                        `Delete ${person.name} and all their gifts?`
-                      )
-                    ) {
-                      await handleDeletePerson(person.id);
-                      if (selectedPersonId === person.id) {
-                        setSelectedPersonId(null);
-                        setSelectedPerson(null);
+                {!peopleLoading && people.length === 0 && (
+                  <p className="text-sm text-slate-600">
+                    No people added yet. Use the form above to add someone
+                    (e.g., &quot;Mom&quot;, &quot;Dad&quot;, &quot;Kids&quot;).
+                  </p>
+                )}
+
+                <ul className="mt-3 space-y-2">
+                  {people.map((person) => (
+                    <PersonRow
+                      key={person.id}
+                      person={person}
+                      isSelected={selectedPersonId === person.id}
+                      onSelect={() => {
+                        setSelectedPersonId(person.id);
+                        setSelectedPerson(person);
+                      }}
+                      onToggleCompleted={() =>
+                        handleUpdatePerson(person.id, {
+                          is_manually_completed:
+                            !person.is_manually_completed,
+                        })
                       }
-                    }
-                  }}
-                />
-              ))}
-            </ul>
+                      onDelete={async () => {
+                        if (
+                          window.confirm(
+                            `Delete ${person.name} and all their gifts?`
+                          )
+                        ) {
+                          await handleDeletePerson(person.id);
+                          if (selectedPersonId === person.id) {
+                            setSelectedPersonId(null);
+                            setSelectedPerson(null);
+                          }
+                        }
+                      }}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
           </section>
         )}
 
+        {viewMode === "wrapping" && selectedList && (
+          <WrappingDashboard
+            groups={wrappingGroups}
+            loading={wrappingLoading}
+            error={wrappingError}
+            onRefresh={async () => {
+              await refreshWrapping();
+              await refreshListTotals();
+            }}
+            onGiftWrapped={async () => {
+              await refreshListTotals();
+            }}
+            selectedListName={selectedList.name}
+            markGiftWrapped={markGiftWrapped}
+          />
+        )}
+
         {/* Gifts section for selected person */}
-        {selectedPerson && (
+        {viewMode === "people" && selectedPerson && (
           <GiftsSection
             key={selectedPerson.id}
             person={selectedPerson}
@@ -1174,6 +1241,124 @@ function EnvBadge() {
   return (
     <div className={`fixed top-2 right-2 z-50 px-2 py-1 text-[10px] rounded-full ${colorClass} text-white shadow`}>
       {label}
+    </div>
+  );
+}
+
+/* ---------- WrappingDashboard ---------- */
+
+type WrappingDashboardProps = {
+  groups: import("./hooks/useWrappingDashboard").WrappingGroup[];
+  loading: boolean;
+  error: string | null;
+  onRefresh: () => Promise<void> | void;
+  onGiftWrapped?: () => Promise<void> | void;
+  selectedListName: string;
+  markGiftWrapped: (giftId: string) => Promise<void>;
+};
+
+function WrappingDashboard({
+  groups,
+  loading,
+  error,
+  onRefresh,
+  onGiftWrapped,
+  selectedListName,
+  markGiftWrapped,
+}: WrappingDashboardProps) {
+  const totalGifts = groups.reduce(
+    (sum, group) => sum + group.gifts.length,
+    0
+  );
+
+  return (
+    <div className="mt-2">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-800">
+            Wrapping dashboard – {selectedListName}
+          </p>
+          <p className="text-[11px] text-slate-500">
+            Showing all <span className="font-semibold">purchased</span> gifts
+            that are <span className="font-semibold">not wrapped yet</span>.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onRefresh && onRefresh()}
+          className="text-[11px] px-3 py-1 rounded-full bg-slate-900 text-white hover:bg-slate-800"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {error && (
+        <p className="text-xs text-red-600 mb-2">Error: {error}</p>
+      )}
+
+      {loading && (
+        <p className="text-sm text-slate-600">Loading wrapping data…</p>
+      )}
+
+      {!loading && totalGifts === 0 && (
+        <p className="text-sm text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+          All purchased gifts are wrapped. 🎁 You’re good to go!
+        </p>
+      )}
+
+      {!loading && totalGifts > 0 && (
+        <div className="space-y-3">
+          <p className="text-xs text-slate-600">
+            Total unwrapped purchased gifts:{" "}
+            <span className="font-semibold">{totalGifts}</span>
+          </p>
+
+          {groups.map((group) => (
+            <div
+              key={group.personId}
+              className="border border-slate-200 rounded-xl bg-white px-4 py-3"
+            >
+              <p className="text-sm font-semibold mb-1">
+                {group.personName}
+              </p>
+              <ul className="space-y-2">
+                {group.gifts.map((gift) => (
+                  <li
+                    key={gift.id}
+                    className="flex items-center justify-between text-sm border border-dashed border-slate-200 rounded-lg px-3 py-2 bg-slate-50"
+                  >
+                    <div>
+                      <p className="font-medium text-slate-800">
+                        {gift.description}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Price: ${gift.price.toFixed(2)}
+                      </p>
+                      {gift.notes && (
+                        <p className="text-[11px] text-slate-500">
+                          Notes: {gift.notes}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="text-[11px] px-3 py-1 rounded-full bg-emerald-500 text-white hover:bg-emerald-400"
+                      onClick={async () => {
+                        await markGiftWrapped(gift.id);
+                        if (onGiftWrapped) {
+                          await onGiftWrapped();
+                        }
+                      }}
+                    >
+                      Mark wrapped
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
