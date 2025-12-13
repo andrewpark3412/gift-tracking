@@ -49,3 +49,15 @@ export type Gift = {
   created_at: string;
   updated_at: string;
 };
+
+export type HouseholdInvite = {
+  id: string;
+  household_id: string;
+  invited_email: string;
+  token: string;
+  status: "pending" | "accepted" | "revoked" | "expired";
+  invited_by: string;
+  created_at: string;
+  expires_at: string;
+  accepted_at: string | null;
+};

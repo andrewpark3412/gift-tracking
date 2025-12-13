@@ -2,6 +2,8 @@ import { useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import { useAuthSession } from "./hooks/useAuthSession";
 import { useCurrentHousehold } from "./hooks/useCurrentHousehold";
+import { useHouseholdInvites } from "./hooks/useHouseholdInvites";
+import { useHouseholdMembers } from "./hooks/useHouseholdMembers";
 import { useLists } from "./hooks/useLists";
 import { useListTotals } from "./hooks/useListTotals";
 import { usePeople } from "./hooks/usePeople";
@@ -26,6 +28,8 @@ function App() {
   const [creatingAccount, setCreatingAccount] = useState(false);
   const [viewMode, setViewMode] = useState<"people" | "wrapping">("people");
 
+  const inviteToken = new URLSearchParams(window.location.search).get("invite");
+
   // Household
   const {
     loading: householdLoading,
@@ -33,6 +37,24 @@ function App() {
     currentHousehold,
     createHousehold,
   } = useCurrentHousehold(userId);
+
+  const {
+    members,
+    loading: membersLoading,
+    error: membersError,
+    refresh: refreshMembers,
+    removeMember,
+    leaveHousehold,
+  } = useHouseholdMembers(currentHousehold?.id ?? null);
+
+    const {
+      invites,
+      loading: invitesLoading,
+      error: invitesError,
+      createInvite,
+      revokeInvite,
+      refresh: refreshInvites,
+    } = useHouseholdInvites(currentHousehold?.id ?? null);
 
   const [newHouseholdName, setNewHouseholdName] = useState("Park Family");
   const [creatingHouseholdError, setCreatingHouseholdError] =
@@ -129,15 +151,26 @@ function App() {
     }
 
     console.log("Signed in as", data.user?.id);
+    await upsertProfile();
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
 
+    const inviteToken = new URLSearchParams(window.location.search).get("invite");
+
+    const redirectTo =
+      inviteToken
+        ? `${window.location.origin}?invite=${encodeURIComponent(inviteToken)}`
+        : window.location.origin;
+
     const { data, error } = await supabase.auth.signUp({
       email: authEmail,
       password: authPassword,
+      options: {
+        emailRedirectTo: redirectTo,
+      },
     });
 
     if (error) {
@@ -147,10 +180,28 @@ function App() {
     }
 
     console.log("Sign up data", data);
+    await upsertProfile();
+    if (!data.session) {
+      setAuthError(
+        "Check your email to confirm your account, then return to this page to finish joining the household."
+      );
+      return;
+    }
   };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+  };
+
+  const upsertProfile = async () => {
+    const { data } = await supabase.auth.getUser();
+    const user = data.user;
+    if (!user?.id || !user.email) return;
+
+    await supabase.from("profiles").upsert({
+      user_id: user.id,
+      email: user.email,
+    });
   };
 
   // Household creation handlers
@@ -349,6 +400,21 @@ function App() {
           </button>
         </div>
       </div>
+    );
+  }
+
+    // If user has an invite token in URL, show accept flow
+  if (inviteToken) {
+    return (
+      <AcceptInviteScreen
+        token={inviteToken}
+        onDone={() => {
+          // remove query param (simple)
+          window.history.replaceState({}, "", window.location.pathname);
+          // refresh household info by reloading page (simplest + reliable)
+          window.location.reload();
+        }}
+      />
     );
   }
 
@@ -611,7 +677,7 @@ function App() {
               )}
               {!listTotalsLoading && !listTotalsError && selectedListTotals && (
                 <>
-                  <p className="font-medium">
+                  <p className="font-medium mb-1">
                     List summary for {selectedList.name}
                   </p>
                   <p>
@@ -633,9 +699,7 @@ function App() {
                         }
                       >
                         $
-                        {selectedListTotals.remainingBudget.toFixed(
-                          2
-                        )}
+                        {selectedListTotals.remainingBudget.toFixed(2)}
                       </span>
                     </p>
                   ) : (
@@ -650,6 +714,75 @@ function App() {
                         : "people"}
                     </p>
                   )}
+
+                  {selectedListTotals.perPerson &&
+                    selectedListTotals.perPerson.length > 0 && (
+                      <>
+                        <div className="mt-2 h-px bg-slate-200/70" />
+                        <p className="mt-2 mb-1 text-[11px] font-semibold text-slate-600">
+                          Per-person budgets
+                        </p>
+                        <ul className="space-y-1.5">
+                          {selectedListTotals.perPerson
+                            .filter(
+                              (p) =>
+                                p.budget !== null || p.spent > 0
+                            )
+                            .map((p) => {
+                              const budget = p.budget ?? 0;
+                              const spent = p.spent;
+                              const percentUsed =
+                                budget > 0
+                                  ? Math.min(
+                                      100,
+                                      Math.round((spent / budget) * 100)
+                                    )
+                                  : null;
+
+                              return (
+                                <li key={p.personId}>
+                                  <div className="flex items-center justify-between text-[11px] mb-0.5">
+                                    <span className="font-medium text-slate-700">
+                                      {p.name}
+                                    </span>
+                                    <span className="text-slate-500">
+                                      {budget > 0 ? (
+                                        <>
+                                          ${spent.toFixed(2)} / $
+                                          {budget.toFixed(2)}{" "}
+                                          {percentUsed !== null && (
+                                            <span className="ml-1 text-[10px] text-slate-500">
+                                              ({percentUsed}%)
+                                            </span>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <span className="italic text-slate-400">
+                                          ${spent.toFixed(2)} (no budget)
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                  {budget > 0 && (
+                                    <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${
+                                          p.overBudget
+                                            ? "bg-red-500"
+                                            : "bg-emerald-500"
+                                        }`}
+                                        style={{
+                                          width: `${percentUsed ?? 0}%`,
+                                        }}
+                                      />
+                                    </div>
+                                  )}
+                                </li>
+                              );
+                            })}
+                        </ul>
+                      </>
+                    )}
                 </>
               )}
             </div>
@@ -741,6 +874,143 @@ function App() {
             onTotalsChanged={refreshListTotals}
           />
         )}
+
+        <section className="bg-white rounded-xl shadow-sm p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xl font-semibold">Household</h2>
+            <button
+              onClick={refreshInvites}
+              className="text-xs px-3 py-1 rounded-md bg-slate-900 text-white hover:bg-slate-800"
+            >
+              Refresh
+            </button>
+          </div>
+
+          <InviteForm
+            onCreate={async (email) => {
+              const inv = await createInvite(email);
+              const link = `${window.location.origin}?invite=${inv.token}`;
+              await navigator.clipboard.writeText(link);
+              alert(`Invite link copied!\n\n${link}`);
+            }}
+          />
+
+          {invitesError && (
+            <p className="text-xs text-red-600 mt-2">Error: {invitesError}</p>
+          )}
+
+          <div className="mt-4">
+            <p className="text-sm font-semibold mb-2">Pending invites</p>
+            {invitesLoading && <p className="text-sm text-slate-600">Loading…</p>}
+            {!invitesLoading && invites.filter(i => i.status === "pending").length === 0 && (
+              <p className="text-sm text-slate-600">No pending invites.</p>
+            )}
+
+            <ul className="space-y-2">
+              {invites
+                .filter((i) => i.status === "pending")
+                .map((i) => {
+                  const link = `${window.location.origin}?invite=${i.token}`;
+                  return (
+                    <li key={i.id} className="border rounded-xl p-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{i.invited_email}</p>
+                        <p className="text-xs text-slate-500">
+                          Expires: {new Date(i.expires_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="text-xs px-2 py-1 border rounded-full hover:bg-slate-50"
+                          onClick={async () => {
+                            await navigator.clipboard.writeText(link);
+                            alert("Invite link copied!");
+                          }}
+                        >
+                          Copy link
+                        </button>
+                        <button
+                          className="text-xs px-2 py-1 border border-red-500 text-red-600 rounded-full hover:bg-red-50"
+                          onClick={async () => {
+                            if (confirm("Revoke this invite?")) {
+                              await revokeInvite(i.id);
+                            }
+                          }}
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+            </ul>
+          </div>
+
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold">Members</p>
+              <button
+                onClick={refreshMembers}
+                className="text-xs px-3 py-1 rounded-md bg-slate-900 text-white hover:bg-slate-800"
+              >
+                Refresh
+              </button>
+            </div>
+
+            {membersError && (
+              <p className="text-xs text-red-600 mb-2">Error: {membersError}</p>
+            )}
+
+            {membersLoading && <p className="text-sm text-slate-600">Loading…</p>}
+
+            {!membersLoading && members.length === 0 && (
+              <p className="text-sm text-slate-600">No members found.</p>
+            )}
+
+            <ul className="space-y-2">
+              {members.map((m) => (
+                <li
+                  key={m.user_id}
+                  className="border rounded-xl p-3 flex items-center justify-between"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{m.email ?? m.user_id}</p>
+                    {m.created_at && (
+                      <p className="text-xs text-slate-500">
+                        Joined: {new Date(m.created_at).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="text-xs px-2 py-1 border border-red-500 text-red-600 rounded-full hover:bg-red-50"
+                      onClick={async () => {
+                        const { data } = await supabase.auth.getUser();
+                        const me = data.user?.id;
+
+                        if (m.user_id === me) {
+                          if (confirm("Leave this household? You may lose access to household lists.")) {
+                            await leaveHousehold();
+                            window.location.reload();
+                          }
+                          return;
+                        }
+
+                        if (confirm(`Remove ${m.email ?? "this user"} from the household?`)) {
+                          await removeMember(m.user_id);
+                        }
+                      }}
+                    >
+                      {/** label changes if you are that member */}
+                      {m.user_id === userId ? "Leave" : "Remove"}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
       </main>
       <EnvBadge />
       <InstallBanner />
@@ -1480,6 +1750,121 @@ function InstallBanner() {
         </div>
       </div>
     </div>
+  );
+}
+
+function AcceptInviteScreen({
+  token,
+  onDone,
+}: {
+  token: string;
+  onDone: () => void;
+}) {
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
+    "idle"
+  );
+  const [message, setMessage] = useState<string>("");
+
+  const accept = async () => {
+    setStatus("loading");
+    setMessage("");
+
+    const { data, error } = await supabase.rpc("accept_household_invite", {
+      p_token: token,
+    });
+
+    if (error) {
+      setStatus("error");
+      setMessage(error.message);
+      return;
+    }
+
+    setStatus("success");
+    setMessage("Invite accepted! Redirecting…");
+    setTimeout(() => onDone(), 800);
+  };
+
+  useEffect(() => {
+    accept();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
+      <div className="bg-white shadow-md rounded-2xl p-6 max-w-md w-full">
+        <h1 className="text-lg font-semibold mb-2">Household Invite</h1>
+        {status === "loading" && (
+          <p className="text-sm text-slate-600">Accepting invite…</p>
+        )}
+        {status === "success" && (
+          <p className="text-sm text-emerald-700">{message}</p>
+        )}
+        {status === "error" && (
+          <>
+            <p className="text-sm text-red-600 mb-3">Error: {message}</p>
+            <button
+              className="text-sm px-3 py-2 rounded-md bg-slate-900 text-white"
+              onClick={() => onDone()}
+            >
+              Go back
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InviteForm({ onCreate }: { onCreate: (email: string) => Promise<void> }) {
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setError("Email is required.");
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(trimmed)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await onCreate(trimmed);
+      setEmail("");
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to create invite");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-col md:flex-row gap-2 items-start md:items-end">
+      <div className="flex-1 w-full">
+        <label className="block text-xs font-medium mb-1">Invite by email</label>
+        <input
+          className="w-full border rounded-md px-3 py-2 text-sm"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="spouse@example.com"
+        />
+        {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+      </div>
+      <button
+        type="submit"
+        disabled={busy}
+        className="text-sm px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+      >
+        {busy ? "Creating…" : "Create invite (copy link)"}
+      </button>
+    </form>
   );
 }
 

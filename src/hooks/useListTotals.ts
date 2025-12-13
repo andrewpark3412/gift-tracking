@@ -2,12 +2,22 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabaseClient";
 import type { GiftStatus } from "../types";
 
+export type PersonBudgetSummary = {
+  personId: string;
+  name: string;
+  budget: number | null;
+  spent: number;
+  remaining: number | null;
+  overBudget: boolean;
+};
+
 type ListTotals = {
   totalBudget: number;
   totalSpent: number;
   remainingBudget: number | null;
   peopleCount: number;
   overBudgetPeopleCount: number;
+  perPerson: PersonBudgetSummary[];
 };
 
 type UseListTotalsResult = {
@@ -19,6 +29,7 @@ type UseListTotalsResult = {
 
 type PersonLite = {
   id: string;
+  name: string;
   budget: number | null;
 };
 
@@ -42,10 +53,10 @@ export function useListTotals(listId: string | null): UseListTotalsResult {
     setLoading(true);
     setError(null);
 
-    // 1) Load people for this list
+    // 1) Load people for this list (id, name, budget)
     const { data: peopleData, error: peopleError } = await supabase
       .from("people")
-      .select("id, budget")
+      .select("id, name, budget")
       .eq("list_id", listId);
 
     if (peopleError) {
@@ -67,6 +78,7 @@ export function useListTotals(listId: string | null): UseListTotalsResult {
         remainingBudget: null,
         peopleCount: 0,
         overBudgetPeopleCount: 0,
+        perPerson: [],
       });
       setLoading(false);
       return;
@@ -110,22 +122,47 @@ export function useListTotals(listId: string | null): UseListTotalsResult {
     let totalSpent = 0;
     let overBudgetPeopleCount = 0;
 
+    const perPerson: PersonBudgetSummary[] = [];
+
     spentByPerson.forEach((spent, personId) => {
       totalSpent += spent;
       const person = peopleById.get(personId);
-      if (person && person.budget != null && spent > person.budget) {
+      if (!person) return;
+
+      const budget = person.budget != null ? Number(person.budget) || 0 : null;
+      const remaining =
+        budget != null ? Number((budget - spent).toFixed(2)) : null;
+      const overBudget = budget != null && spent > budget;
+
+      if (overBudget) {
         overBudgetPeopleCount += 1;
       }
+
+      perPerson.push({
+        personId,
+        name: person.name,
+        budget: budget,
+        spent: Number(spent.toFixed(2)),
+        remaining,
+        overBudget,
+      });
     });
+
+    // Sort per-person summaries by name
+    perPerson.sort((a, b) => a.name.localeCompare(b.name));
 
     const remainingBudget = anyBudgetSet ? totalBudget - totalSpent : null;
 
     setTotals({
       totalBudget,
       totalSpent,
-      remainingBudget,
+      remainingBudget:
+        remainingBudget !== null
+          ? Number(remainingBudget.toFixed(2))
+          : null,
       peopleCount: people.length,
       overBudgetPeopleCount,
+      perPerson,
     });
 
     setLoading(false);
