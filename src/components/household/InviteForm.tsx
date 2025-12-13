@@ -39,6 +39,7 @@ export function InviteForm({ onCreate }: InviteFormProps) {
       <div className="flex-1 w-full">
         <label className="block text-xs font-medium mb-1">Invite by email</label>
         <input
+          type="email"
           className="w-full border rounded-md px-3 py-2 text-sm"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
