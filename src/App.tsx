@@ -23,6 +23,7 @@ import { ListsSection } from "./components/lists/ListsSection";
 import { PeopleSection } from "./components/people/PeopleSection";
 import { GiftsSection } from "./components/gifts/GiftsSection";
 import { WrappingDashboard } from "./components/wrapping/WrappingDashboard";
+import { WrappingNightMode } from "./components/wrapping/WrappingNightMode";
 
 import type {
   List,
@@ -35,6 +36,7 @@ function App() {
 
   const [viewMode, setViewMode] = useState<"people" | "wrapping">("people");
   const [showCreateHouseholdModal, setShowCreateHouseholdModal] = useState(false);
+  const [isWrappingNightMode, setIsWrappingNightMode] = useState(false);
 
   const inviteToken = new URLSearchParams(window.location.search).get("invite");
 
@@ -270,13 +272,30 @@ function App() {
   // Logged in with a household → main UI
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 text-slate-900">
-      <Header 
-        households={households}
-        activeHouseholdId={activeHouseholdId}
-        onSwitchHousehold={handleSwitchHousehold}
-        onCreateHousehold={() => setShowCreateHouseholdModal(true)}
-        onSignOut={handleSignOut} 
-      />
+      {isWrappingNightMode && selectedList ? (
+        <WrappingNightMode
+          groups={wrappingGroups}
+          loading={wrappingLoading}
+          error={wrappingError}
+          selectedListName={selectedList.name}
+          markGiftWrapped={markGiftWrapped}
+          onExit={() => setIsWrappingNightMode(false)}
+          onGiftWrapped={async () => {
+            await refreshListTotals();
+          }}
+        />
+      ) : (
+        <>
+          <Header 
+            households={households}
+            activeHouseholdId={activeHouseholdId}
+            onSwitchHousehold={handleSwitchHousehold}
+            onCreateHousehold={() => setShowCreateHouseholdModal(true)}
+            onSignOut={handleSignOut}
+            onEnterWrappingMode={() => setIsWrappingNightMode(true)}
+            isWrappingMode={isWrappingNightMode}
+            selectedListId={selectedListId}
+          />
 
       <CreateHouseholdModal
         isOpen={showCreateHouseholdModal}
@@ -340,6 +359,7 @@ function App() {
             }}
             selectedListName={selectedList.name}
             markGiftWrapped={markGiftWrapped}
+            onEnterFullScreen={() => setIsWrappingNightMode(true)}
           />
         )}
 
@@ -369,6 +389,8 @@ function App() {
       </main>
       <EnvBadge />
       <InstallBanner />
+        </>
+      )}
     </div>
   );
 }

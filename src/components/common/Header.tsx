@@ -12,14 +12,20 @@ interface HeaderProps {
   onSwitchHousehold: (householdId: string) => void;
   onCreateHousehold: () => void;
   onSignOut: () => Promise<void>;
+  onEnterWrappingMode?: () => void;
+  isWrappingMode?: boolean;
+  selectedListId?: string | null;
 }
 
-export function Header({ 
+export function Header({
   households,
   activeHouseholdId,
   onSwitchHousehold,
   onCreateHousehold,
-  onSignOut 
+  onSignOut,
+  onEnterWrappingMode,
+  isWrappingMode,
+  selectedListId,
 }: HeaderProps) {
   return (
     <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
@@ -36,6 +42,14 @@ export function Header({
         </div>
 
         <div className="flex items-center gap-3">
+          {!isWrappingMode && selectedListId && onEnterWrappingMode && (
+            <button
+              onClick={onEnterWrappingMode}
+              className="px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white text-xs font-medium hover:from-emerald-700 hover:to-emerald-800 transition-all shadow-sm"
+            >
+              🎁 Wrapping Mode
+            </button>
+          )}
           <HouseholdSwitcher
             households={households}
             activeHouseholdId={activeHouseholdId}

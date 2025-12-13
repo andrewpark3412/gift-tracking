@@ -8,6 +8,7 @@ interface WrappingDashboardProps {
   onGiftWrapped?: () => Promise<void> | void;
   selectedListName: string;
   markGiftWrapped: (giftId: string) => Promise<void>;
+  onEnterFullScreen?: () => void;
 }
 
 export function WrappingDashboard({
@@ -18,6 +19,7 @@ export function WrappingDashboard({
   onGiftWrapped,
   selectedListName,
   markGiftWrapped,
+  onEnterFullScreen,
 }: WrappingDashboardProps) {
   const totalGifts = groups.reduce(
     (sum, group) => sum + group.gifts.length,
@@ -36,13 +38,24 @@ export function WrappingDashboard({
             that are <span className="font-semibold">not wrapped yet</span>.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => onRefresh && onRefresh()}
-          className="text-[11px] px-3 py-1 rounded-full bg-slate-900 text-white hover:bg-slate-800"
-        >
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          {onEnterFullScreen && totalGifts > 0 && (
+            <button
+              type="button"
+              onClick={onEnterFullScreen}
+              className="text-[11px] px-3 py-1 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:from-emerald-700 hover:to-emerald-800 font-medium"
+            >
+              🎁 Full Screen Mode
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onRefresh && onRefresh()}
+            className="text-[11px] px-3 py-1 rounded-full bg-slate-900 text-white hover:bg-slate-800"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && (
