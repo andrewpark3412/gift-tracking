@@ -38,7 +38,11 @@ Use these instructions whenever generating code, refactors, migrations, hooks, o
 - Backend: Supabase Postgres + Supabase Auth + RLS policies
 - Hosting: Vercel
 - Local dev: Docker compose (dev) mimicking production where possible
-- PWA: Vite PWA plugin (already configured)
+- PWA: Vite PWA plugin with full offline support
+  - Auto-update service worker with workbox
+  - Network status monitoring
+  - Offline operation queue with localStorage
+  - Optimistic UI updates
 
 ---
 
@@ -158,9 +162,9 @@ Totals rules:
 - Auth screen (sign in / sign up)
 - Household creation (if no household membership)
 - Main:
-  - Lists (create, toggle private/household, delete)
-  - People (create, budget, mark complete)
-  - Gifts (idea/purchased, wrapped, delete, notes)
+  - Lists (create, edit inline, toggle private/household, duplicate, delete)
+  - People (create, edit inline name/budget, mark complete)
+  - Gifts (create, edit inline all fields, toggle status/wrapped, delete, notes)
   - Summary (list totals and per-person budgets)
   - Household settings:
     - create invite (copy invite link)
@@ -168,9 +172,19 @@ Totals rules:
     - members list (show roles) — member can view
     - promote/demote/remove — admin/owner only (never for owner)
 
-### PWA
+### Inline editing
+- Lists, people, and gifts all support inline editing (no modals)
+- Click "Edit" button to expand form in place
+- Save/Cancel buttons appear during edit mode
+- Maintain visual styling and state during editing
+
+### PWA & Offline Support
 - App should remain installable and run well on iPhone.
 - Prefer responsive/mobile-first layouts.
+- Network status indicator shows at top when offline
+- All gift and people operations queue when offline
+- Automatic background sync when reconnected
+- Update notifications for new app versions
 
 ---
 
@@ -184,9 +198,20 @@ Totals rules:
 
 ### Data access
 - All data access uses `supabase.from(...).select/insert/update/delete`.
+- For mutations (create/update/delete) on gifts and people, use `offlineInsert`, `offlineUpdate`, `offlineDelete` from `lib/offlineSupabase.ts`
+  - These wrap Supabase calls with offline queue support
+  - Automatically queue operations when offline
+  - Return optimistic responses for instant UI updates
 - Keep queries minimal (select only needed columns).
 - After any create/update/delete that affects totals, trigger totals refresh.
 - Avoid heavy realtime features unless requested.
+
+### Offline operation queue
+- Gift and people operations are automatically queued when offline
+- Queue stored in localStorage via `lib/offlineQueue.ts`
+- Optimistic UI updates happen immediately
+- Background sync processes queue when reconnected
+- Network status component shows sync progress
 
 ### Budget calculations
 - Purchased gifts only contribute to spent totals.
@@ -218,10 +243,19 @@ Totals rules:
 
 ---
 
+## Completed features
+- ✅ Inline editing for lists, people, and gifts
+- ✅ Duplicate list to next year (copy people + budgets + optionally ideas)
+- ✅ Offline operation queue with localStorage
+- ✅ Network status indicator
+- ✅ Background sync for offline operations
+- ✅ PWA update notifications
+- ✅ Optimistic UI updates
+
 ## Feature roadmap hints (optional)
 Potential future features include:
-- Duplicate list to next year (copy people + budgets + optionally ideas)
 - Gift history per person across years
-- Wrapping “night mode”
+- Wrapping "night mode" enhancements
 - Ownership transfer
 - Audit log
+- Bulk operations (mark all as wrapped, etc.)
