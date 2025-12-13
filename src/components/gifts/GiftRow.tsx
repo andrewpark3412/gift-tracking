@@ -72,7 +72,7 @@ export function GiftRow({ gift, onToggleStatus, onToggleWrapped, onUpdate, onDel
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
+              className="text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 cursor-pointer"
               onClick={async () => {
                 if (!editDescription.trim()) return;
                 const price = parseFloat(editPrice);
@@ -90,7 +90,7 @@ export function GiftRow({ gift, onToggleStatus, onToggleWrapped, onUpdate, onDel
             </button>
             <button
               type="button"
-              className="text-xs px-3 py-1.5 border rounded-md hover:bg-slate-100"
+              className="text-xs px-3 py-1.5 border rounded-md hover:bg-slate-100 cursor-pointer"
               onClick={() => {
                 setEditDescription(gift.description);
                 setEditPrice(gift.price.toString());
@@ -155,14 +155,14 @@ export function GiftRow({ gift, onToggleStatus, onToggleWrapped, onUpdate, onDel
       <div className="flex flex-col gap-1 ml-4">
         <button
           type="button"
-          className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100 whitespace-nowrap"
+          className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100 whitespace-nowrap cursor-pointer"
           onClick={() => setIsEditing(true)}
         >
           Edit
         </button>
         <button
           type="button"
-          className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100 whitespace-nowrap"
+          className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100 whitespace-nowrap cursor-pointer"
           onClick={onToggleStatus}
         >
           {purchased ? "→ Idea" : "→ Purchased"}
@@ -170,7 +170,7 @@ export function GiftRow({ gift, onToggleStatus, onToggleWrapped, onUpdate, onDel
         {purchased && (
           <button
             type="button"
-            className={`text-[11px] px-2 py-1 border rounded-full whitespace-nowrap ${
+            className={`text-[11px] px-2 py-1 border rounded-full whitespace-nowrap cursor-pointer ${
               gift.is_wrapped
                 ? "border-slate-300 bg-slate-100 hover:bg-slate-200"
                 : "border-emerald-500 text-emerald-700 hover:bg-emerald-50"
@@ -182,7 +182,7 @@ export function GiftRow({ gift, onToggleStatus, onToggleWrapped, onUpdate, onDel
         )}
         <button
           type="button"
-          className="text-[11px] px-2 py-1 border border-red-500 text-red-600 rounded-full hover:bg-red-50 whitespace-nowrap"
+          className="text-[11px] px-2 py-1 border border-red-500 text-red-600 rounded-full hover:bg-red-50 whitespace-nowrap cursor-pointer"
           onClick={onDelete}
         >
           Delete

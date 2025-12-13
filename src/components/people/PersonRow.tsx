@@ -58,7 +58,7 @@ export function PersonRow({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
+              className="text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 cursor-pointer"
               onClick={async () => {
                 if (!editName.trim()) return;
                 const budget = editBudget.trim() ? parseFloat(editBudget) : null;
@@ -73,7 +73,7 @@ export function PersonRow({
             </button>
             <button
               type="button"
-              className="text-xs px-3 py-1.5 border rounded-md hover:bg-slate-100"
+              className="text-xs px-3 py-1.5 border rounded-md hover:bg-slate-100 cursor-pointer"
               onClick={() => {
                 setEditName(person.name);
                 setEditBudget(person.budget?.toString() || "");
@@ -101,7 +101,7 @@ export function PersonRow({
           <button
             type="button"
             onClick={onSelect}
-            className="underline-offset-2 hover:underline"
+            className="underline-offset-2 hover:underline cursor-pointer"
           >
             {person.name}
           </button>
@@ -126,24 +126,27 @@ export function PersonRow({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
+          className="text-[11px] px-2.5 py-1.5 border rounded-md hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
           onClick={() => setIsEditing(true)}
         >
-          Edit
+          <span>✏️</span>
+          <span>Edit</span>
         </button>
         <button
           type="button"
-          className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
+          className="text-[11px] px-2.5 py-1.5 border rounded-md hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
           onClick={onToggleCompleted}
         >
-          {completed ? "Mark not complete" : "Mark completed"}
+          <span>{completed ? "↩️" : "✅"}</span>
+          <span>{completed ? "Undo" : "Done"}</span>
         </button>
         <button
           type="button"
-          className="text-[11px] px-2 py-1 border border-red-500 text-red-600 rounded-full hover:bg-red-50"
+          className="text-[11px] px-2.5 py-1.5 border border-red-500 text-red-600 rounded-md hover:bg-red-50 flex items-center gap-1 cursor-pointer"
           onClick={onDelete}
         >
-          Delete
+          <span>🗑️</span>
+          <span>Delete</span>
         </button>
       </div>
     </li>

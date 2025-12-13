@@ -7,7 +7,7 @@ export function MobileBackButton({ onClick, label }: MobileBackButtonProps) {
   return (
     <button
       onClick={onClick}
-      className="lg:hidden flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-3 -mt-1"
+      className="lg:hidden flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-3 -mt-1 cursor-pointer"
     >
       <svg
         className="w-4 h-4"

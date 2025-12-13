@@ -66,7 +66,7 @@ export function AddPersonForm({ onAdd }: AddPersonFormProps) {
       <div>
         <button
           type="submit"
-          className="w-full bg-emerald-600 text-white text-sm font-medium rounded-md py-2 hover:bg-emerald-700"
+          className="w-full bg-emerald-600 text-white text-sm font-medium rounded-md py-2 hover:bg-emerald-700 cursor-pointer"
         >
           Add Person
         </button>

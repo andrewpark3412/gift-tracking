@@ -87,9 +87,11 @@ export function GiftsSection({ person, onTotalsChanged, onBack }: GiftsSectionPr
             await refresh();
             if (onTotalsChanged) await onTotalsChanged();
           }}
-          className="text-xs px-3 py-1 rounded-md bg-slate-900 text-white hover:bg-slate-800"
+          className="h-8 w-8 flex items-center justify-center rounded-md border hover:bg-slate-100 cursor-pointer"
+          title="Refresh"
+          aria-label="Refresh gifts"
         >
-          Refresh
+          <span className="text-base">🔄</span>
         </button>
       </div>
 

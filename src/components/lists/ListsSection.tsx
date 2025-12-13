@@ -64,9 +64,11 @@ export function ListsSection({
         <h2 className="text-xl font-semibold">Year Lists</h2>
         <button
           onClick={onRefresh}
-          className="text-xs px-3 py-1 rounded-md bg-slate-900 text-white hover:bg-slate-800"
+          className="h-8 w-8 flex items-center justify-center rounded-md border hover:bg-slate-100 cursor-pointer"
+          title="Refresh"
+          aria-label="Refresh lists"
         >
-          Refresh
+          <span className="text-base">🔄</span>
         </button>
       </div>
 
@@ -103,7 +105,7 @@ export function ListsSection({
         <div>
           <button
             type="submit"
-            className="w-full bg-emerald-600 text-white text-sm font-medium rounded-md py-2 hover:bg-emerald-700"
+            className="w-full bg-emerald-600 text-white text-sm font-medium rounded-md py-2 hover:bg-emerald-700 cursor-pointer"
           >
             Add List
           </button>
@@ -123,7 +125,7 @@ export function ListsSection({
       <ul className="space-y-2">
         {lists.map((list) => {
           const isEditing = editingListId === list.id;
-          
+
           return (
             <li
               key={list.id}
@@ -169,7 +171,7 @@ export function ListsSection({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className="text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
+                      className="text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 cursor-pointer"
                       onClick={async () => {
                         if (!editName.trim()) return;
                         await onUpdateList(list.id, {
@@ -184,7 +186,7 @@ export function ListsSection({
                     </button>
                     <button
                       type="button"
-                      className="text-xs px-3 py-1.5 border rounded-md hover:bg-slate-100"
+                      className="text-xs px-3 py-1.5 border rounded-md hover:bg-slate-100 cursor-pointer"
                       onClick={() => setEditingListId(null)}
                     >
                       Cancel
@@ -192,9 +194,10 @@ export function ListsSection({
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between cursor-pointer" onClick={() => onSelectList(list)}>
-                  <div>
-                    <p className="font-medium flex items-center gap-2">
+                <div>
+                  {/* List info - clickable to select */}
+                  <div className="cursor-pointer" onClick={() => onSelectList(list)}>
+                    <p className="font-medium flex items-center gap-2 flex-wrap">
                       <span>{list.name}</span>
                       <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
                         {list.year}
@@ -218,10 +221,12 @@ export function ListsSection({
                       </span>
                     </p>
                   </div>
-                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+
+                  {/* Action buttons - separate row on mobile, inline on desktop */}
+                  <div className="mt-3 pt-3 border-t md:mt-0 md:pt-0 md:border-t-0 flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
-                      className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
+                      className="text-[11px] px-2.5 py-1.5 border rounded-md hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
                       onClick={() => {
                         setEditingListId(list.id);
                         setEditName(list.name);
@@ -229,32 +234,38 @@ export function ListsSection({
                         setEditVisibility(list.visibility);
                       }}
                     >
-                      Edit
+                      <span>✏️</span>
+                      <span>Edit</span>
                     </button>
                     <button
                       type="button"
-                      className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
+                      className="text-[11px] px-2.5 py-1.5 border rounded-md hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
                       onClick={() => onToggleVisibility(list.id, list.visibility)}
+                      title="Toggle between household and private"
                     >
-                      Toggle visibility
+                      <span>{list.visibility === "household" ? "👥" : "🔒"}</span>
+                      <span>Visibility</span>
                     </button>
                     <button
                       type="button"
-                      className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
+                      className="text-[11px] px-2.5 py-1.5 border rounded-md hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
                       onClick={() => onDuplicateList(list)}
+                      title="Duplicate to next year"
                     >
-                      Duplicate next year
+                      <span>➕</span>
+                      <span>Duplicate</span>
                     </button>
                     <button
                       type="button"
-                      className="text-[11px] px-2 py-1 border border-red-500 text-red-600 rounded-full hover:bg-red-50"
+                      className="text-[11px] px-2.5 py-1.5 border border-red-500 text-red-600 rounded-md hover:bg-red-50 flex items-center gap-1 cursor-pointer"
                       onClick={() => {
                         if (window.confirm(`Delete list "${list.name}" and all its people/gifts?`)) {
                           onDeleteList(list.id);
                         }
                       }}
                     >
-                      Delete
+                      <span>🗑️</span>
+                      <span className="hidden sm:inline">Delete</span>
                     </button>
                   </div>
                 </div>

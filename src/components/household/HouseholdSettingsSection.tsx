@@ -42,9 +42,11 @@ export function HouseholdSettingsSection({
         <h2 className="text-xl font-semibold">Household</h2>
         <button
           onClick={onRefreshInvites}
-          className="text-xs px-3 py-1 rounded-md bg-slate-900 text-white hover:bg-slate-800"
+          className="h-8 w-8 flex items-center justify-center rounded-md border hover:bg-slate-100 cursor-pointer"
+          title="Refresh"
+          aria-label="Refresh invites"
         >
-          Refresh
+          <span className="text-base">🔄</span>
         </button>
       </div>
 
@@ -109,9 +111,11 @@ export function HouseholdSettingsSection({
           <p className="text-sm font-semibold">Members</p>
           <button
             onClick={onRefreshMembers}
-            className="text-xs px-3 py-1 rounded-md bg-slate-900 text-white hover:bg-slate-800"
+            className="h-8 w-8 flex items-center justify-center rounded-md border hover:bg-slate-100 cursor-pointer"
+            title="Refresh"
+            aria-label="Refresh members"
           >
-            Refresh
+            <span className="text-base">🔄</span>
           </button>
         </div>
 

@@ -107,7 +107,7 @@ export function AddGiftForm({ onAdd }: AddGiftFormProps) {
         <div>
           <button
             type="submit"
-            className="w-full bg-emerald-600 text-white text-sm font-medium rounded-md py-2 hover:bg-emerald-700"
+            className="w-full md:w-auto md:px-8 bg-emerald-600 text-white text-sm font-medium rounded-md py-2 hover:bg-emerald-700 cursor-pointer"
           >
             Save gift
           </button>

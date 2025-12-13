@@ -51,18 +51,18 @@ export function HouseholdSwitcher({
   }
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative flex-1 md:flex-initial" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600/30 transition-colors"
+        className="flex items-center gap-2 px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600/30 transition-colors w-full md:w-auto text-xs md:text-sm cursor-pointer"
         aria-label="Switch household"
       >
-        <span className="text-xl">🏠</span>
-        <span className="font-medium text-slate-100 max-w-[200px] truncate">
+        <span className="text-lg md:text-xl shrink-0">🏠</span>
+        <span className="font-medium text-slate-100 truncate max-w-[120px] sm:max-w-[200px]">
           {activeHousehold?.household.name || "Select Household"}
         </span>
         <svg
-          className={`w-4 h-4 text-slate-400 transition-transform ${
+          className={`w-3 h-3 md:w-4 md:h-4 text-slate-400 transition-transform shrink-0 ${
             isOpen ? "rotate-180" : ""
           }`}
           fill="none"
