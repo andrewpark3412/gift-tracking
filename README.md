@@ -1,73 +1,42 @@
-# React + TypeScript + Vite
+# 🎄 Christmas Gift Tracker
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A private, household-friendly Christmas gift tracking app designed for couples and families.
 
-Currently, two official plugins are available:
+Track gift ideas, purchases, wrapping status, and budgets — year over year — without spreadsheets, shared notes, or surprises.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Built as a modern SaaS-style web app using Supabase and deployed on Vercel.
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## ✨ Features
 
-## Expanding the ESLint configuration
+- 🔐 Email/password authentication (Supabase Auth)
+- 👨‍👩‍👧 Household sharing with invites
+- 🧑 People per list with optional budgets
+- 🎁 Gift ideas vs purchased tracking
+- 🎀 Wrapping status tracking
+- 💰 Automatic totals per person and per list
+- 📆 Year-based lists (e.g. Christmas 2025)
+- 🔄 Duplicate lists for next year (planned)
+- 📱 Installable PWA (mobile-friendly)
+- 🔒 Secure Row Level Security (RLS)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🏗 Tech Stack
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- **Frontend**: React + TypeScript + Vite
+- **Styling**: Tailwind CSS v4
+- **Backend**: Supabase (Postgres + Auth + RLS)
+- **Hosting**: Vercel
+- **Local Dev**: Docker Compose
+- **PWA**: Vite PWA plugin
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🚀 Local Development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### 1. Clone the repo
+```bash
+git clone https://github.com/andrewpark3412/gift-tracking.git
+cd gift-tracking

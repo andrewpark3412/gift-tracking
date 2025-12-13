@@ -1,0 +1,117 @@
+---
+
+# 2️⃣ `docs/architecture.md`
+
+```md
+# Architecture Overview
+
+This document describes the high-level architecture and design decisions for the Christmas Gift Tracker.
+
+---
+
+## 🧠 Design Principles
+
+- **Client-first**: No custom backend server
+- **Security by default**: RLS is the source of truth
+- **Low friction UX**: Optimized for spouses/family
+- **Simple mental model**: Lists → People → Gifts
+
+---
+
+## 🔐 Authentication
+
+- Supabase Auth (email/password)
+- Email confirmations enabled
+- Users may exist without a session immediately after signup
+- App handles session-less state gracefully
+
+---
+
+## 👨‍👩‍👧 Household Model
+
+- Users belong to households via `household_members`
+- Membership is role-based:
+  - `owner`
+  - `admin`
+  - `member`
+- Ownership is immutable via UI (cannot remove owner)
+
+---
+
+## 🎟 Invites
+
+- Household invites are stored in `household_invites`
+- Invites:
+  - Are single-use
+  - Expire
+  - Must be accepted via RPC
+- Invite acceptance is atomic and server-enforced
+
+---
+
+## 🔒 Security & RLS Strategy
+
+### Core rules
+- RLS is enabled on all tables
+- No service keys are used in the client
+- All permission logic lives in Postgres
+
+### Avoiding recursion
+- Policies never self-query the same table
+- SECURITY DEFINER helper functions are used:
+  - `is_household_member(household_id)`
+  - `is_household_admin(household_id)`
+
+### RPC usage
+- Multi-step operations (invite acceptance) use RPCs
+- RPCs are `security definer`
+- Direct table writes are minimal and scoped
+
+---
+
+## 📱 Frontend Architecture
+
+### State management
+- Local React state + hooks
+- No global state library (by design)
+
+### Data hooks
+Each major domain has a hook:
+- `useCurrentHousehold`
+- `useLists`
+- `usePeople`
+- `useGifts`
+- `useListTotals`
+- `useHouseholdMembers`
+- `useHouseholdInvites`
+
+Hooks handle:
+- loading
+- error
+- refresh
+
+---
+
+## 💰 Budget & Totals Logic
+
+- Only gifts with `status='purchased'` count toward totals
+- Wrapping applies only to purchased gifts
+- Budgets are optional and nullable
+- UI reflects over/under budget clearly
+
+---
+
+## 📦 Deployment Model
+
+- Vercel handles build + hosting
+- Supabase hosts data, auth, storage
+- Environment parity maintained via Docker
+
+---
+
+## 🧭 Future Architecture Considerations
+
+- Ownership transfer RPC
+- Audit log table + trigger
+- Offline-first enhancements
+- Read-only guest access
