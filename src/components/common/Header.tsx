@@ -31,7 +31,7 @@ export function Header({
     <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
       <div className="max-w-4xl mx-auto px-4 py-3">
         {/* Top row: logo + title + sign out */}
-        <div className="flex items-center justify-between gap-3 mb-2 md:mb-2">
+        <div className="flex items-center justify-between gap-3 mb-2 md:mb-0">
           <div className="flex items-center gap-2 min-w-0">
             <div className="flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/40 shrink-0">
               <span className="text-lg md:text-xl">🎄</span>

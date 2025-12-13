@@ -1,18 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 
 export function UpdatePrompt() {
+  const registrationRef = useRef<ServiceWorkerRegistration | undefined>(undefined);
+  
   const {
     offlineReady: [offlineReady, setOfflineReady],
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegistered(r: ServiceWorkerRegistration | undefined) {
-      // Check for updates every hour
       if (r) {
+        registrationRef.current = r;
+        console.log("Service Worker registered, checking for updates...");
+        
+        // Immediately check for updates on registration
+        r.update();
+        
+        // Check for updates every 5 minutes (more frequent for better responsiveness)
         setInterval(() => {
+          console.log("Periodic update check...");
           r.update();
-        }, 60 * 60 * 1000);
+        }, 5 * 60 * 1000);
       }
     },
     onRegisterError(error: Error) {
@@ -24,9 +33,36 @@ export function UpdatePrompt() {
 
   useEffect(() => {
     if (needRefresh || offlineReady) {
+      console.log("Update available or offline ready:", { needRefresh, offlineReady });
       setShowPrompt(true);
     }
   }, [needRefresh, offlineReady]);
+
+  // Check for updates when app becomes visible (especially important on mobile)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && registrationRef.current) {
+        console.log("App visible, checking for updates...");
+        registrationRef.current.update();
+      }
+    };
+
+    // Check for updates on focus (when user returns to app)
+    const handleFocus = () => {
+      if (registrationRef.current) {
+        console.log("App focused, checking for updates...");
+        registrationRef.current.update();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
 
   const close = () => {
     setOfflineReady(false);
