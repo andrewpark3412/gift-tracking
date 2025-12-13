@@ -9,6 +9,18 @@ body {
   @apply bg-slate-100 text-slate-900;
 }
 
+/* Prevent iOS auto-zoom on input focus by ensuring minimum 16px font size */
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="password"],
+input[type="tel"],
+input[type="url"],
+textarea,
+select {
+  font-size: 16px;
+}
+
 /* PWA Update Prompt Animation */
 @keyframes slide-up {
   from {
