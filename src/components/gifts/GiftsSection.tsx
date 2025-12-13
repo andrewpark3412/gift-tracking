@@ -1,14 +1,16 @@
 import { useGifts } from "../../hooks/useGifts";
 import { AddGiftForm } from "./AddGiftForm";
 import { GiftRow } from "./GiftRow";
+import { MobileBackButton } from "../common/MobileBackButton";
 import type { Person } from "../../types";
 
 interface GiftsSectionProps {
   person: Person;
   onTotalsChanged?: () => Promise<void> | void;
+  onBack?: () => void;
 }
 
-export function GiftsSection({ person, onTotalsChanged }: GiftsSectionProps) {
+export function GiftsSection({ person, onTotalsChanged, onBack }: GiftsSectionProps) {
   const {
     gifts,
     loading,
@@ -47,6 +49,7 @@ export function GiftsSection({ person, onTotalsChanged }: GiftsSectionProps) {
 
   return (
     <section className="bg-white rounded-xl shadow-sm p-4">
+      {onBack && <MobileBackButton onClick={onBack} label="Back to People" />}
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 className="text-xl font-semibold">Gifts – {person.name}</h2>
@@ -120,6 +123,10 @@ export function GiftsSection({ person, onTotalsChanged }: GiftsSectionProps) {
             }}
             onToggleWrapped={async () => {
               await updateGift(gift.id, { is_wrapped: !gift.is_wrapped });
+              if (onTotalsChanged) await onTotalsChanged();
+            }}
+            onUpdate={async (updates) => {
+              await updateGift(gift.id, updates);
               if (onTotalsChanged) await onTotalsChanged();
             }}
             onDelete={async () => {

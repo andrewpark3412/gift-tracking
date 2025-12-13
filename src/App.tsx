@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./lib/supabaseClient";
 import { useAuthSession } from "./hooks/useAuthSession";
 import { useHouseholds } from "./hooks/useHouseholds";
@@ -34,9 +34,23 @@ import type {
 function App() {
   const { userId, sessionChecked } = useAuthSession();
 
-  const [viewMode, setViewMode] = useState<"people" | "wrapping">("people");
   const [showCreateHouseholdModal, setShowCreateHouseholdModal] = useState(false);
   const [isWrappingNightMode, setIsWrappingNightMode] = useState(false);
+
+  // Mobile navigation state
+  const [mobileView, setMobileView] = useState<"lists" | "people" | "gifts">("lists");
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Track screen size for mobile layout
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const inviteToken = new URLSearchParams(window.location.search).get("invite");
 
@@ -146,7 +160,7 @@ function App() {
     setSelectedList(null);
     setSelectedPersonId(null);
     setSelectedPerson(null);
-    setViewMode("people");
+    setMobileView("lists");
   }, [activeHouseholdId]);
 
   const handleSignOut = async () => {
@@ -205,7 +219,18 @@ function App() {
     setSelectedList(list);
     setSelectedPersonId(null);
     setSelectedPerson(null);
-    setViewMode("people");
+    setMobileView("people");
+  };
+
+  const handleUpdateList = async (id: string, updates: { name: string; year: number; visibility: ListVisibility }) => {
+    await updateList(id, updates);
+    if (selectedListId === id) {
+      // Update the selectedList state to reflect the changes
+      const updated = lists.find((l) => l.id === id);
+      if (updated) {
+        setSelectedList({ ...updated, ...updates });
+      }
+    }
   };
 
   const handleDeleteList = async (id: string) => {
@@ -305,70 +330,123 @@ function App() {
       />
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        <ListsSection
-          lists={lists}
-          loading={listsLoading}
-          error={listsError}
-          selectedListId={selectedListId}
-          onSelectList={handleSelectList}
-          onCreateList={createList}
-          onToggleVisibility={handleToggleVisibility}
-          onDuplicateList={handleDuplicateList}
-          onDeleteList={handleDeleteList}
-          onRefresh={refreshLists}
-        />
+        {/* Mobile: Show only lists view */}
+        {isMobile && mobileView === "lists" && (
+          <ListsSection
+            lists={lists}
+            loading={listsLoading}
+            error={listsError}
+            selectedListId={selectedListId}
+            onSelectList={handleSelectList}
+            onCreateList={createList}
+            onToggleVisibility={handleToggleVisibility}
+            onDuplicateList={handleDuplicateList}
+            onDeleteList={handleDeleteList}
+            onUpdateList={handleUpdateList}
+            onRefresh={refreshLists}
+          />
+        )}
 
-        {selectedList && (
+        {/* Mobile: Show only people view */}
+        {isMobile && mobileView === "people" && selectedList && (
           <PeopleSection
             list={selectedList}
             people={people}
             loading={peopleLoading}
             error={peopleError}
             selectedPersonId={selectedPersonId}
-            viewMode={viewMode}
             listTotals={selectedListTotals}
             listTotalsLoading={listTotalsLoading}
             listTotalsError={listTotalsError}
             onSelectPerson={(person) => {
               setSelectedPersonId(person.id);
               setSelectedPerson(person);
+              setMobileView("gifts");
             }}
             onAddPerson={handleCreatePerson}
             onUpdatePerson={handleUpdatePerson}
             onDeletePerson={handleDeletePerson}
-            onSetViewMode={setViewMode}
             onRefresh={async () => {
               await refreshPeople();
               await refreshListTotals();
-              await refreshWrapping();
             }}
+            onBack={() => setMobileView("lists")}
           />
         )}
 
-        {viewMode === "wrapping" && selectedList && (
-          <WrappingDashboard
-            groups={wrappingGroups}
-            loading={wrappingLoading}
-            error={wrappingError}
-            onRefresh={async () => {
-              await refreshWrapping();
-              await refreshListTotals();
-            }}
-            onGiftWrapped={async () => {
-              await refreshListTotals();
-            }}
-            selectedListName={selectedList.name}
-            markGiftWrapped={markGiftWrapped}
-            onEnterFullScreen={() => setIsWrappingNightMode(true)}
-          />
-        )}
-
-        {viewMode === "people" && selectedPerson && (
+        {/* Mobile: Show only gifts view */}
+        {isMobile && mobileView === "gifts" && selectedPerson && (
           <GiftsSection
             key={selectedPerson.id}
             person={selectedPerson}
             onTotalsChanged={refreshListTotals}
+            onBack={() => setMobileView("people")}
           />
+        )}
+
+        {/* Desktop: Show lists always */}
+        {!isMobile && (
+          <ListsSection
+            lists={lists}
+            loading={listsLoading}
+            error={listsError}
+            selectedListId={selectedListId}
+            onSelectList={handleSelectList}
+            onCreateList={createList}
+            onToggleVisibility={handleToggleVisibility}
+            onDuplicateList={handleDuplicateList}
+            onDeleteList={handleDeleteList}
+            onUpdateList={handleUpdateList}
+            onRefresh={refreshLists}
+          />
+        )}
+
+        {/* Desktop: Show side-by-side people and gifts */}
+        {!isMobile && selectedList && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            <div className="lg:sticky lg:top-6">
+              <PeopleSection
+                list={selectedList}
+                people={people}
+                loading={peopleLoading}
+                error={peopleError}
+                selectedPersonId={selectedPersonId}
+                listTotals={selectedListTotals}
+                listTotalsLoading={listTotalsLoading}
+                listTotalsError={listTotalsError}
+                onSelectPerson={(person) => {
+                  setSelectedPersonId(person.id);
+                  setSelectedPerson(person);
+                }}
+                onAddPerson={handleCreatePerson}
+                onUpdatePerson={handleUpdatePerson}
+                onDeletePerson={handleDeletePerson}
+                onRefresh={async () => {
+                  await refreshPeople();
+                  await refreshListTotals();
+                }}
+              />
+            </div>
+
+            {selectedPerson && (
+              <div>
+                <GiftsSection
+                  key={selectedPerson.id}
+                  person={selectedPerson}
+                  onTotalsChanged={refreshListTotals}
+                />
+              </div>
+            )}
+
+            {!selectedPerson && (
+              <div className="bg-white rounded-xl shadow-sm p-8 text-center text-slate-500">
+                <svg className="mx-auto h-12 w-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <p className="text-sm">Select a person to manage their gifts</p>
+              </div>
+            )}
+          </div>
         )}
 
         <HouseholdSettingsSection

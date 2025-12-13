@@ -47,62 +47,9 @@ export function ListSummary({ listName, totals, loading, error }: ListSummaryPro
 
       {totals.overBudgetPeopleCount > 0 && (
         <p className="text-red-600">
-          Over budget: {totals.overBudgetPeopleCount}{" "}
-          {totals.overBudgetPeopleCount === 1 ? "person" : "people"}
+          ⚠️ {totals.overBudgetPeopleCount}{" "}
+          {totals.overBudgetPeopleCount === 1 ? "person is" : "people are"} over budget
         </p>
-      )}
-
-      {totals.perPerson && totals.perPerson.length > 0 && (
-        <>
-          <div className="mt-2 h-px bg-slate-200/70" />
-          <p className="mt-2 mb-1 text-[11px] font-semibold text-slate-600">
-            Per-person budgets
-          </p>
-          <ul className="space-y-1.5">
-            {totals.perPerson
-              .filter((p: PersonBudgetSummary) => p.budget !== null || p.spent > 0)
-              .map((p: PersonBudgetSummary) => {
-                const budget = p.budget ?? 0;
-                const spent = p.spent;
-                const percentUsed =
-                  budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : null;
-
-                return (
-                  <li key={p.personId}>
-                    <div className="flex items-center justify-between text-[11px] mb-0.5">
-                      <span className="font-medium text-slate-700">{p.name}</span>
-                      <span className="text-slate-500">
-                        {budget > 0 ? (
-                          <>
-                            ${spent.toFixed(2)} / ${budget.toFixed(2)}{" "}
-                            {percentUsed !== null && (
-                              <span className="ml-1 text-[10px] text-slate-500">
-                                ({percentUsed}%)
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="italic text-slate-400">
-                            ${spent.toFixed(2)} (no budget)
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    {budget > 0 && (
-                      <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            p.overBudget ? "bg-red-500" : "bg-emerald-500"
-                          }`}
-                          style={{ width: `${percentUsed ?? 0}%` }}
-                        />
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-          </ul>
-        </>
       )}
     </div>
   );

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { List, ListVisibility } from "../../types";
 
 interface ListsSectionProps {
@@ -10,6 +11,7 @@ interface ListsSectionProps {
   onToggleVisibility: (id: string, currentVisibility: ListVisibility) => Promise<void>;
   onDuplicateList: (list: List) => Promise<void>;
   onDeleteList: (id: string) => Promise<void>;
+  onUpdateList: (id: string, updates: { name: string; year: number; visibility: ListVisibility }) => Promise<void>;
   onRefresh: () => Promise<void>;
 }
 
@@ -23,6 +25,7 @@ export function ListsSection({
   onToggleVisibility,
   onDuplicateList,
   onDeleteList,
+  onUpdateList,
   onRefresh,
 }: ListsSectionProps) {
   const currentYear = new Date().getFullYear();
@@ -30,6 +33,10 @@ export function ListsSection({
   const [newListYear, setNewListYear] = useState<number>(currentYear);
   const [newListVisibility, setNewListVisibility] = useState<ListVisibility>("household");
   const [newListError, setNewListError] = useState<string | null>(null);
+  const [editingListId, setEditingListId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editYear, setEditYear] = useState<number>(currentYear);
+  const [editVisibility, setEditVisibility] = useState<ListVisibility>("household");
 
   const handleCreateList = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,73 +121,148 @@ export function ListsSection({
       )}
 
       <ul className="space-y-2">
-        {lists.map((list) => (
-          <li
-            key={list.id}
-            className={`border rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer transition-colors ${
-              selectedListId === list.id
-                ? "bg-emerald-50 border-emerald-300"
-                : "bg-white hover:bg-slate-50/80 border-slate-200"
-            }`}
-            onClick={() => onSelectList(list)}
-          >
-            <div>
-              <p className="font-medium flex items-center gap-2">
-                <span>{list.name}</span>
-                <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-                  {list.year}
-                </span>
-                {selectedListId === list.id && (
-                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                    Active
-                  </span>
-                )}
-              </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Visibility:{" "}
-                <span
-                  className={
-                    list.visibility === "household"
-                      ? "font-medium text-emerald-700"
-                      : "font-medium text-slate-600"
-                  }
-                >
-                  {list.visibility === "household" ? "Household list" : "Private list"}
-                </span>
-              </p>
-            </div>
-            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
-                onClick={() => onToggleVisibility(list.id, list.visibility)}
-              >
-                Toggle visibility
-              </button>
-              <button
-                type="button"
-                className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
-                onClick={() => onDuplicateList(list)}
-              >
-                Duplicate next year
-              </button>
-              <button
-                type="button"
-                className="text-[11px] px-2 py-1 border border-red-500 text-red-600 rounded-full hover:bg-red-50"
-                onClick={() => {
-                  if (window.confirm(`Delete list "${list.name}" and all its people/gifts?`)) {
-                    onDeleteList(list.id);
-                  }
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          </li>
-        ))}
+        {lists.map((list) => {
+          const isEditing = editingListId === list.id;
+          
+          return (
+            <li
+              key={list.id}
+              className={`border rounded-xl px-4 py-3 transition-colors ${
+                selectedListId === list.id
+                  ? "bg-emerald-50 border-emerald-300"
+                  : "bg-white hover:bg-slate-50/80 border-slate-200"
+              }`}
+            >
+              {isEditing ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Name</label>
+                      <input
+                        type="text"
+                        className="w-full border rounded-md px-3 py-2 text-sm"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Year</label>
+                      <input
+                        type="number"
+                        className="w-full border rounded-md px-3 py-2 text-sm"
+                        value={editYear}
+                        onChange={(e) => setEditYear(Number(e.target.value) || currentYear)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Visibility</label>
+                      <select
+                        className="w-full border rounded-md px-3 py-2 text-sm"
+                        value={editVisibility}
+                        onChange={(e) => setEditVisibility(e.target.value as ListVisibility)}
+                      >
+                        <option value="household">Household</option>
+                        <option value="private">Private</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
+                      onClick={async () => {
+                        if (!editName.trim()) return;
+                        await onUpdateList(list.id, {
+                          name: editName.trim(),
+                          year: editYear,
+                          visibility: editVisibility,
+                        });
+                        setEditingListId(null);
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs px-3 py-1.5 border rounded-md hover:bg-slate-100"
+                      onClick={() => setEditingListId(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between cursor-pointer" onClick={() => onSelectList(list)}>
+                  <div>
+                    <p className="font-medium flex items-center gap-2">
+                      <span>{list.name}</span>
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                        {list.year}
+                      </span>
+                      {selectedListId === list.id && (
+                        <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                          Active
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Visibility:{" "}
+                      <span
+                        className={
+                          list.visibility === "household"
+                            ? "font-medium text-emerald-700"
+                            : "font-medium text-slate-600"
+                        }
+                      >
+                        {list.visibility === "household" ? "Household list" : "Private list"}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
+                      onClick={() => {
+                        setEditingListId(list.id);
+                        setEditName(list.name);
+                        setEditYear(list.year);
+                        setEditVisibility(list.visibility);
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
+                      onClick={() => onToggleVisibility(list.id, list.visibility)}
+                    >
+                      Toggle visibility
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100"
+                      onClick={() => onDuplicateList(list)}
+                    >
+                      Duplicate next year
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[11px] px-2 py-1 border border-red-500 text-red-600 rounded-full hover:bg-red-50"
+                      onClick={() => {
+                        if (window.confirm(`Delete list "${list.name}" and all its people/gifts?`)) {
+                          onDeleteList(list.id);
+                        }
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
 }
-
-import { useState } from "react";

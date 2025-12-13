@@ -1,14 +1,111 @@
-import type { Gift } from "../../types";
+import { useState } from "react";
+import type { Gift, GiftStatus } from "../../types";
 
 interface GiftRowProps {
   gift: Gift;
   onToggleStatus: () => Promise<void>;
   onToggleWrapped: () => Promise<void>;
+  onUpdate: (updates: { description: string; price: number; status: GiftStatus; notes: string | null }) => Promise<void>;
   onDelete: () => Promise<void>;
 }
 
-export function GiftRow({ gift, onToggleStatus, onToggleWrapped, onDelete }: GiftRowProps) {
+export function GiftRow({ gift, onToggleStatus, onToggleWrapped, onUpdate, onDelete }: GiftRowProps) {
   const purchased = gift.status === "purchased";
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDescription, setEditDescription] = useState(gift.description);
+  const [editPrice, setEditPrice] = useState(gift.price.toString());
+  const [editStatus, setEditStatus] = useState<GiftStatus>(gift.status);
+  const [editNotes, setEditNotes] = useState(gift.notes || "");
+
+  if (isEditing) {
+    return (
+      <li
+        className={`border rounded-xl px-4 py-3 ${
+          purchased
+            ? "bg-emerald-50 border-emerald-200"
+            : "bg-slate-50 border-slate-200"
+        }`}
+      >
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1">Description</label>
+              <input
+                type="text"
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">Price</label>
+              <input
+                type="number"
+                step="0.01"
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                value={editPrice}
+                onChange={(e) => setEditPrice(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">Status</label>
+              <select
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as GiftStatus)}
+              >
+                <option value="idea">Idea</option>
+                <option value="purchased">Purchased</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1">Notes (optional)</label>
+            <textarea
+              className="w-full border rounded-md px-3 py-2 text-sm"
+              rows={2}
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              placeholder="Add any notes..."
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
+              onClick={async () => {
+                if (!editDescription.trim()) return;
+                const price = parseFloat(editPrice);
+                if (isNaN(price) || price < 0) return;
+                await onUpdate({
+                  description: editDescription.trim(),
+                  price,
+                  status: editStatus,
+                  notes: editNotes.trim() || null,
+                });
+                setIsEditing(false);
+              }}
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              className="text-xs px-3 py-1.5 border rounded-md hover:bg-slate-100"
+              onClick={() => {
+                setEditDescription(gift.description);
+                setEditPrice(gift.price.toString());
+                setEditStatus(gift.status);
+                setEditNotes(gift.notes || "");
+                setIsEditing(false);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </li>
+    );
+  }
 
   return (
     <li
@@ -56,6 +153,13 @@ export function GiftRow({ gift, onToggleStatus, onToggleWrapped, onDelete }: Gif
       </div>
 
       <div className="flex flex-col gap-1 ml-4">
+        <button
+          type="button"
+          className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100 whitespace-nowrap"
+          onClick={() => setIsEditing(true)}
+        >
+          Edit
+        </button>
         <button
           type="button"
           className="text-[11px] px-2 py-1 border rounded-full hover:bg-slate-100 whitespace-nowrap"
