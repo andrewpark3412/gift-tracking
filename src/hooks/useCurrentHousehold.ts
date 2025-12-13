@@ -6,20 +6,21 @@ type UseCurrentHouseholdResult = {
   currentHousehold: Household | null;
   loading: boolean;
   error: string | null;
-  createHousehold: (name: string) => Promise<void>;
+  createHousehold: (name: string, userId: string) => Promise<Household | null>;
+  refresh: () => Promise<void>;
 };
 
 export function useCurrentHousehold(
-  userId: string | null
+  householdId: string | null
 ): UseCurrentHouseholdResult {
   const [currentHousehold, setCurrentHousehold] = useState<Household | null>(
     null
   );
-  const [loading, setLoading] = useState<boolean>(!!userId);
+  const [loading, setLoading] = useState<boolean>(!!householdId);
   const [error, setError] = useState<string | null>(null);
 
   const loadHousehold = useCallback(async () => {
-    if (!userId) {
+    if (!householdId) {
       setCurrentHousehold(null);
       setLoading(false);
       return;
@@ -28,30 +29,7 @@ export function useCurrentHousehold(
     setLoading(true);
     setError(null);
 
-    // 1) Find household membership for this user
-    const { data: membershipRows, error: membershipError } = await supabase
-      .from("household_members")
-      .select("household_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (membershipError) {
-      console.error("Error loading household membership", membershipError);
-      setError(membershipError.message);
-      setLoading(false);
-      return;
-    }
-
-    if (!membershipRows?.household_id) {
-      // no household yet
-      setCurrentHousehold(null);
-      setLoading(false);
-      return;
-    }
-
-    const householdId = membershipRows.household_id as string;
-
-    // 2) Load that household
+    // Load the specific household by ID
     const { data: householdRow, error: householdError } = await supabase
       .from("households")
       .select("*")
@@ -67,17 +45,17 @@ export function useCurrentHousehold(
 
     setCurrentHousehold((householdRow ?? null) as Household | null);
     setLoading(false);
-  }, [userId]);
+  }, [householdId]);
 
   useEffect(() => {
     loadHousehold();
   }, [loadHousehold]);
 
   const createHousehold = useCallback(
-    async (name: string) => {
+    async (name: string, userId: string): Promise<Household | null> => {
       if (!userId) {
         setError("No user ID available.");
-        return;
+        return null;
       }
 
       setLoading(true);
@@ -97,31 +75,37 @@ export function useCurrentHousehold(
         console.error("Error creating household", createError);
         setError(createError.message);
         setLoading(false);
-        return;
+        return null;
       }
 
       const household = createdHousehold as Household;
 
-      // 2) Add membership row for this user
+      // 2) Add membership row for this user as owner
       const { error: memberError } = await supabase
         .from("household_members")
         .insert({
           household_id: household.id,
           user_id: userId,
+          role: "owner",
         });
 
       if (memberError) {
         console.error("Error creating household membership", memberError);
         setError(memberError.message);
         setLoading(false);
-        return;
+        return null;
       }
 
       setCurrentHousehold(household);
       setLoading(false);
+      return household;
     },
-    [userId]
+    []
   );
 
-  return { currentHousehold, loading, error, createHousehold };
+  const refresh = useCallback(async () => {
+    await loadHousehold();
+  }, [loadHousehold]);
+
+  return { currentHousehold, loading, error, createHousehold, refresh };
 }

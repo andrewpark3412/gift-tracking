@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabaseClient";
 
 interface AcceptInviteScreenProps {
   token: string;
-  onDone: () => void;
+  onDone: (newHouseholdId?: string) => void;
 }
 
 export function AcceptInviteScreen({ token, onDone }: AcceptInviteScreenProps) {
@@ -16,6 +16,23 @@ export function AcceptInviteScreen({ token, onDone }: AcceptInviteScreenProps) {
     setStatus("loading");
     setMessage("");
 
+    // First, get the household ID from the invite
+    const { data: inviteData, error: inviteError } = await supabase
+      .from("household_invites")
+      .select("household_id")
+      .eq("token", token)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (inviteError || !inviteData) {
+      setStatus("error");
+      setMessage(inviteError?.message || "Invite not found or expired");
+      return;
+    }
+
+    const householdId = inviteData.household_id;
+
+    // Now accept the invite
     const { error } = await supabase.rpc("accept_household_invite", {
       p_token: token,
     });
@@ -27,8 +44,8 @@ export function AcceptInviteScreen({ token, onDone }: AcceptInviteScreenProps) {
     }
 
     setStatus("success");
-    setMessage("Invite accepted! Redirecting…");
-    setTimeout(() => onDone(), 800);
+    setMessage("Invite accepted! Switching to household…");
+    setTimeout(() => onDone(householdId), 800);
   };
 
   useEffect(() => {

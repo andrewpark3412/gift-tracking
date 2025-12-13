@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "./lib/supabaseClient";
 import { useAuthSession } from "./hooks/useAuthSession";
+import { useHouseholds } from "./hooks/useHouseholds";
 import { useCurrentHousehold } from "./hooks/useCurrentHousehold";
 import { useHouseholdInvites } from "./hooks/useHouseholdInvites";
 import { useHouseholdMembers } from "./hooks/useHouseholdMembers";
@@ -15,6 +16,7 @@ import { Header } from "./components/common/Header";
 import { EnvBadge } from "./components/common/EnvBadge";
 import { InstallBanner } from "./components/common/InstallBanner";
 import { CreateHouseholdScreen } from "./components/household/CreateHouseholdScreen";
+import { CreateHouseholdModal } from "./components/household/CreateHouseholdModal";
 import { AcceptInviteScreen } from "./components/household/AcceptInviteScreen";
 import { HouseholdSettingsSection } from "./components/household/HouseholdSettingsSection";
 import { ListsSection } from "./components/lists/ListsSection";
@@ -32,16 +34,27 @@ function App() {
   const { userId, sessionChecked } = useAuthSession();
 
   const [viewMode, setViewMode] = useState<"people" | "wrapping">("people");
+  const [showCreateHouseholdModal, setShowCreateHouseholdModal] = useState(false);
 
   const inviteToken = new URLSearchParams(window.location.search).get("invite");
 
-  // Household
+  // Multi-household management
+  const {
+    households,
+    activeHouseholdId,
+    loading: householdsLoading,
+    error: householdsError,
+    setActiveHousehold,
+    refresh: refreshHouseholds,
+  } = useHouseholds(userId);
+
+  // Current household details
   const {
     loading: householdLoading,
     error: householdError,
     currentHousehold,
     createHousehold,
-  } = useCurrentHousehold(userId);
+  } = useCurrentHousehold(activeHouseholdId);
 
   const {
     members,
@@ -125,8 +138,31 @@ function App() {
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   
+  // Reset state when switching households
+  useEffect(() => {
+    setSelectedListId(null);
+    setSelectedList(null);
+    setSelectedPersonId(null);
+    setSelectedPerson(null);
+    setViewMode("people");
+  }, [activeHouseholdId]);
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+  };
+
+  const handleSwitchHousehold = (householdId: string) => {
+    setActiveHousehold(householdId);
+  };
+
+  const handleCreateNewHousehold = async (name: string) => {
+    if (!userId) return;
+    
+    const newHousehold = await createHousehold(name, userId);
+    if (newHousehold) {
+      await refreshHouseholds();
+      setActiveHousehold(newHousehold.id);
+    }
   };
 
   const handleToggleVisibility = async (
@@ -190,17 +226,22 @@ function App() {
     return <AuthScreen />;
   }
 
-  // Logged in but no household
-  if (!householdLoading && !currentHousehold) {
+  // Logged in but no households at all
+  if (!householdsLoading && households.length === 0) {
     return (
       <CreateHouseholdScreen
         onCreateHousehold={async (name) => {
-          await createHousehold(name);
+          await handleCreateNewHousehold(name);
         }}
         onSignOut={handleSignOut}
-        householdError={householdError}
+        householdError={householdError || householdsError}
       />
     );
+  }
+
+  // Loading households
+  if (householdsLoading || householdLoading) {
+    return <LoadingScreen />;
   }
 
   // If user has an invite token in URL, show accept flow
@@ -208,9 +249,19 @@ function App() {
     return (
       <AcceptInviteScreen
         token={inviteToken}
-        onDone={() => {
+        onDone={async (newHouseholdId) => {
           window.history.replaceState({}, "", window.location.pathname);
-          window.location.reload();
+          
+          // Refresh households and switch to the new one
+          await refreshHouseholds();
+          if (newHouseholdId) {
+            setActiveHousehold(newHouseholdId);
+          }
+          
+          // Force a small delay to ensure state updates
+          setTimeout(() => {
+            window.location.reload();
+          }, 100);
         }}
       />
     );
@@ -219,7 +270,20 @@ function App() {
   // Logged in with a household → main UI
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 text-slate-900">
-      <Header household={currentHousehold} onSignOut={handleSignOut} />
+      <Header 
+        households={households}
+        activeHouseholdId={activeHouseholdId}
+        onSwitchHousehold={handleSwitchHousehold}
+        onCreateHousehold={() => setShowCreateHouseholdModal(true)}
+        onSignOut={handleSignOut} 
+      />
+
+      <CreateHouseholdModal
+        isOpen={showCreateHouseholdModal}
+        onClose={() => setShowCreateHouseholdModal(false)}
+        onCreateHousehold={handleCreateNewHousehold}
+        error={householdError}
+      />
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         <ListsSection
