@@ -15,6 +15,7 @@ import { LoadingScreen } from "./components/common/LoadingScreen";
 import { Header } from "./components/common/Header";
 import { EnvBadge } from "./components/common/EnvBadge";
 import { InstallBanner } from "./components/common/InstallBanner";
+import { UpdatePrompt } from "./components/common/UpdatePrompt";
 import { CreateHouseholdScreen } from "./components/household/CreateHouseholdScreen";
 import { CreateHouseholdModal } from "./components/household/CreateHouseholdModal";
 import { AcceptInviteScreen } from "./components/household/AcceptInviteScreen";
@@ -465,6 +466,7 @@ function App() {
       </main>
       <EnvBadge />
       <InstallBanner />
+      <UpdatePrompt />
         </>
       )}
     </div>

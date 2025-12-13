@@ -3,15 +3,27 @@
   <head>
     <meta charset="UTF-8" />
 
+    <!-- PWA Configuration -->
     <meta name="theme-color" content="#0f172a" />
-
     <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- iOS-specific PWA meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Gift Tracker" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Prevent iOS from detecting phone numbers -->
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Standard favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>gift-tracking</title>
+    <!-- Viewport settings optimized for mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+
+    <title>Christmas Gift Tracker</title>
+    <meta name="description" content="Shared Christmas gift tracking for our household." />
   </head>
   <body>
     <div id="root"></div>
