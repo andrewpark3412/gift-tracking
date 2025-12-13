@@ -1,4 +1,4 @@
-import type { ListTotals, PersonBudgetSummary } from "../../hooks/useListTotals";
+import type { ListTotals } from "../../hooks/useListTotals";
 
 interface ListSummaryProps {
   listName: string;
@@ -33,7 +33,7 @@ export function ListSummary({ listName, totals, loading, error }: ListSummaryPro
       <p className="font-medium mb-1">List summary for {listName}</p>
       <p>People: {totals.peopleCount}</p>
       <p>Total spent: ${totals.totalSpent.toFixed(2)}</p>
-      
+
       {totals.remainingBudget !== null ? (
         <p>
           Total budget: ${totals.totalBudget.toFixed(2)} • Remaining:{" "}

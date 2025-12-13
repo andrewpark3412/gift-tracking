@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "./lib/supabaseClient";
 import { useAuthSession } from "./hooks/useAuthSession";
 import { useHouseholds } from "./hooks/useHouseholds";
@@ -22,7 +22,6 @@ import { HouseholdSettingsSection } from "./components/household/HouseholdSettin
 import { ListsSection } from "./components/lists/ListsSection";
 import { PeopleSection } from "./components/people/PeopleSection";
 import { GiftsSection } from "./components/gifts/GiftsSection";
-import { WrappingDashboard } from "./components/wrapping/WrappingDashboard";
 import { WrappingNightMode } from "./components/wrapping/WrappingNightMode";
 
 import type {
@@ -46,7 +45,7 @@ function App() {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 1024);
     };
-    
+
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
@@ -128,7 +127,6 @@ function App() {
       groups: wrappingGroups,
       loading: wrappingLoading,
       error: wrappingError,
-      refresh: refreshWrapping,
       markGiftWrapped,
     } = useWrappingDashboard(selectedListId);
 
@@ -153,7 +151,7 @@ function App() {
   // Selected person (for gifts)
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
-  
+
   // Reset state when switching households
   useEffect(() => {
     setSelectedListId(null);
@@ -173,7 +171,7 @@ function App() {
 
   const handleCreateNewHousehold = async (name: string) => {
     if (!userId) return;
-    
+
     const newHousehold = await createHousehold(name, userId);
     if (newHousehold) {
       await refreshHouseholds();
@@ -278,13 +276,13 @@ function App() {
         token={inviteToken}
         onDone={async (newHouseholdId) => {
           window.history.replaceState({}, "", window.location.pathname);
-          
+
           // Refresh households and switch to the new one
           await refreshHouseholds();
           if (newHouseholdId) {
             setActiveHousehold(newHouseholdId);
           }
-          
+
           // Force a small delay to ensure state updates
           setTimeout(() => {
             window.location.reload();
@@ -311,7 +309,7 @@ function App() {
         />
       ) : (
         <>
-          <Header 
+          <Header
             households={households}
             activeHouseholdId={activeHouseholdId}
             onSwitchHousehold={handleSwitchHousehold}
