@@ -11,7 +11,7 @@ export type PersonBudgetSummary = {
   overBudget: boolean;
 };
 
-type ListTotals = {
+export type ListTotals = {
   totalBudget: number;
   totalSpent: number;
   remainingBudget: number | null;
