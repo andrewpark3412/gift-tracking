@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { offlineInsert, offlineUpdate, offlineDelete } from "../lib/offlineSupabase";
 import type { Person } from "../types";
 
 type UsePeopleResult = {
@@ -58,16 +59,14 @@ export function usePeople(listId: string | null): UsePeopleResult {
         return;
       }
 
-      const { data, error: insertError } = await supabase
-        .from("people")
-        .insert({
-          list_id: listId,
-          name: params.name,
-          budget: params.budget ?? null,
-          is_manually_completed: false,
-        })
-        .select("*")
-        .single();
+      const personData = {
+        list_id: listId,
+        name: params.name,
+        budget: params.budget ?? null,
+        is_manually_completed: false,
+      };
+
+      const { data, error: insertError } = await offlineInsert<Person>("people", personData);
 
       if (insertError) {
         console.error("Error creating person", insertError);
@@ -75,8 +74,9 @@ export function usePeople(listId: string | null): UsePeopleResult {
         return;
       }
 
-      const newPerson = data as Person;
-      setPeople((prev) => [...prev, newPerson]);
+      if (data) {
+        setPeople((prev) => [...prev, data]);
+      }
     },
     [listId]
   );
@@ -86,39 +86,40 @@ export function usePeople(listId: string | null): UsePeopleResult {
       id: string,
       updates: Partial<Pick<Person, "name" | "budget" | "is_manually_completed">>
     ) => {
-      const { data, error: updateError } = await supabase
-        .from("people")
-        .update(updates)
-        .eq("id", id)
-        .select("*")
-        .single();
+      // Optimistically update UI
+      setPeople((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+
+      const { error: updateError } = await offlineUpdate<Person>("people", id, updates);
 
       if (updateError) {
         console.error("Error updating person", updateError);
         setError(updateError.message);
+        // Revert on error if online
+        if (navigator.onLine) {
+          loadPeople();
+        }
         return;
       }
-
-      const updated = data as Person;
-      setPeople((prev) => prev.map((p) => (p.id === id ? updated : p)));
     },
-    []
+    [loadPeople]
   );
 
   const deletePerson = useCallback(async (id: string) => {
-    const { error: deleteError } = await supabase
-      .from("people")
-      .delete()
-      .eq("id", id);
+    // Optimistically remove from UI
+    setPeople((prev) => prev.filter((p) => p.id !== id));
+
+    const { error: deleteError } = await offlineDelete("people", id);
 
     if (deleteError) {
       console.error("Error deleting person", deleteError);
       setError(deleteError.message);
+      // Revert on error if online
+      if (navigator.onLine) {
+        loadPeople();
+      }
       return;
     }
-
-    setPeople((prev) => prev.filter((p) => p.id !== id));
-  }, []);
+  }, [loadPeople]);
 
   return {
     people,

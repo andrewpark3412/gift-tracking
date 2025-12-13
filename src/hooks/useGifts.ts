@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { offlineInsert, offlineUpdate, offlineDelete } from "../lib/offlineSupabase";
 import type { Gift, GiftStatus } from "../types";
 
 type UseGiftsResult = {
@@ -67,18 +68,16 @@ export function useGifts(personId: string): UseGiftsResult {
         return;
       }
 
-      const { data, error: insertError } = await supabase
-        .from("gifts")
-        .insert({
-          person_id: personId,
-          description: params.description,
-          price: params.price,
-          status: params.status,
-          is_wrapped: params.isWrapped ?? false,
-          notes: params.notes ?? null,
-        })
-        .select("*")
-        .single();
+      const giftData = {
+        person_id: personId,
+        description: params.description,
+        price: params.price,
+        status: params.status,
+        is_wrapped: params.isWrapped ?? false,
+        notes: params.notes ?? null,
+      };
+
+      const { data, error: insertError } = await offlineInsert<Gift>("gifts", giftData);
 
       if (insertError) {
         console.error("Error creating gift", insertError);
@@ -86,44 +85,46 @@ export function useGifts(personId: string): UseGiftsResult {
         return;
       }
 
-      const newGift = data as Gift;
-      setGifts((prev) => [...prev, newGift]);
+      if (data) {
+        setGifts((prev) => [...prev, data]);
+      }
     },
     [personId]
   );
 
   const updateGift = useCallback(async (id: string, updates: Partial<Gift>) => {
-    const { data, error: updateError } = await supabase
-      .from("gifts")
-      .update(updates)
-      .eq("id", id)
-      .select("*")
-      .single();
+    // Optimistically update UI first
+    setGifts((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
+
+    const { error: updateError } = await offlineUpdate<Gift>("gifts", id, updates);
 
     if (updateError) {
       console.error("Error updating gift", updateError);
       setError(updateError.message);
+      // Revert optimistic update on error if online
+      if (navigator.onLine) {
+        loadGifts();
+      }
       return;
     }
-
-    const updated = data as Gift;
-    setGifts((prev) => prev.map((g) => (g.id === id ? updated : g)));
-  }, []);
+  }, [loadGifts]);
 
   const deleteGift = useCallback(async (id: string) => {
-    const { error: deleteError } = await supabase
-      .from("gifts")
-      .delete()
-      .eq("id", id);
+    // Optimistically remove from UI
+    setGifts((prev) => prev.filter((g) => g.id !== id));
+
+    const { error: deleteError } = await offlineDelete("gifts", id);
 
     if (deleteError) {
       console.error("Error deleting gift", deleteError);
       setError(deleteError.message);
+      // Revert optimistic delete on error if online
+      if (navigator.onLine) {
+        loadGifts();
+      }
       return;
     }
-
-    setGifts((prev) => prev.filter((g) => g.id !== id));
-  }, []);
+  }, [loadGifts]);
 
   return {
     gifts,
