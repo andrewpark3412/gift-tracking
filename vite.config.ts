@@ -46,8 +46,6 @@ export default defineConfig({
       workbox: {
         // Cache files for up to 30 days
         cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
         runtimeCaching: [
           {
             // Cache Supabase API calls with network-first strategy
