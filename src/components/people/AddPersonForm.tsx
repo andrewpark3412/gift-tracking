@@ -46,7 +46,7 @@ export function AddPersonForm({ onAdd }: AddPersonFormProps) {
           className="w-full border rounded-md px-3 py-2 text-sm"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Mom, Dad, Danae, Kids..."
+          placeholder="Mom, Dad, Wife, Kids..."
         />
       </div>
       <div>
