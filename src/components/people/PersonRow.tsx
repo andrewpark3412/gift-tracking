@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import ActionButton from "../common/ActionButton";
+import IconActionButton from "../common/IconActionButton";
 import type { Person, Gift } from "../../types";
 
 interface PersonRowProps {
@@ -165,13 +167,7 @@ export function PersonRow({
       <div className="w-full flex items-start justify-between">
         <div>
           <p className="font-medium flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onSelect}
-              className="underline-offset-2 hover:underline cursor-pointer"
-            >
-              {person.name}
-            </button>
+            <ActionButton onClick={onSelect} className="underline-offset-2 hover:underline">{person.name}</ActionButton>
             {completed && (
               <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
                 <span>✅</span>
@@ -179,32 +175,40 @@ export function PersonRow({
               </span>
             )}
           </p>
-          <p className="text-[11px] text-slate-500 mt-0.5">
-            Budget: {person.budget != null ? (
-              <span className="font-medium">${person.budget.toFixed(2)}</span>
-            ) : (
-              <span className="italic text-slate-400">No budget set</span>
-            )}
-          </p>
+          {/* Budget (left) and Total Spent (right) on same line */}
+          {(() => {
+            const totalSpent = (gifts || []).filter((gg) => gg.status === "purchased").reduce((sum, gg) => sum + Number(gg.price || 0), 0);
+            return (
+              <div className="text-[11px] text-slate-500 mt-0.5 flex items-center justify-between">
+                <div>
+                  Budget:{" "}
+                  {person.budget != null ? (
+                    <span className="font-medium">${person.budget.toFixed(2)}</span>
+                  ) : (
+                    <span className="italic text-slate-400">No budget set</span>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className="text-slate-500">Total Spent: </span>
+                  <span className="font-medium">${totalSpent.toFixed(2)}</span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         <div ref={menuRef}>
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              // prevent focus jump and ensure our handler runs before global mousedown
+          <IconActionButton
+            onClick={(e: React.MouseEvent) => {
               e.preventDefault();
               setMenuOpen((s) => !s);
             }}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className="p-1 rounded-md hover:bg-slate-100 text-slate-600 cursor-pointer"
             title="Actions"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M12 6v.01M12 12v.01M12 18v.01" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          </button>
+          </IconActionButton>
         </div>
       </div>
 
@@ -220,24 +224,13 @@ export function PersonRow({
                 key={g.id}
                 className="flex items-center justify-between w-full text-[13px] text-slate-700 bg-slate-50 px-2 py-1 rounded-md"
               >
-                <button
-                  type="button"
-                  onClick={() => onOpenGift?.(g)}
-                  className="text-left truncate flex-1"
-                  title={`${g.description} — $${Number(g.price).toFixed(2)}`}
-                >
+                <ActionButton onClick={() => onOpenGift?.(g)} className="text-left truncate flex-1" title={`${g.description} — $${Number(g.price).toFixed(2)}`}>
                   <span className="truncate">{g.description}</span>
-                </button>
+                </ActionButton>
                 <div className="ml-4 flex items-center gap-2 shrink-0">
                   <span className="text-slate-500">${Number(g.price).toFixed(2)}</span>
                   {g.is_wrapped && <span title="Wrapped">🎁</span>}
-                  <button
-                    type="button"
-                    onClick={() => onOpenGift?.(g)}
-                    className="text-[11px] px-2 py-0.5 border rounded-md hover:bg-slate-100 whitespace-nowrap cursor-pointer"
-                  >
-                    Edit
-                  </button>
+                  <ActionButton onClick={() => onOpenGift?.(g)} className="text-[11px] px-2 py-0.5 border rounded-md hover:bg-slate-100 whitespace-nowrap">Edit</ActionButton>
                 </div>
               </li>
             ))}

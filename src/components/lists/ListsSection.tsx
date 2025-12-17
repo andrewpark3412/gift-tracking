@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { List, ListVisibility } from "../../types";
+import ListActionsMenu from "../common/ListActionsMenu";
 
 interface ListsSectionProps {
   lists: List[];
@@ -196,77 +197,51 @@ export function ListsSection({
               ) : (
                 <div>
                   {/* List info - clickable to select */}
-                  <div className="cursor-pointer" onClick={() => onSelectList(list)}>
-                    <p className="font-medium flex items-center gap-2 flex-wrap">
-                      <span>{list.name}</span>
-                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-                        {list.year}
-                      </span>
-                      {selectedListId === list.id && (
-                        <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                          Active
+                  <div className="flex items-start justify-between">
+                    <div className="cursor-pointer" onClick={() => onSelectList(list)}>
+                      <p className="font-medium flex items-center gap-2 flex-wrap">
+                        <span>{list.name}</span>
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                          {list.year}
                         </span>
-                      )}
-                    </p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Visibility:{" "}
-                      <span
-                        className={
-                          list.visibility === "household"
-                            ? "font-medium text-emerald-700"
-                            : "font-medium text-slate-600"
-                        }
-                      >
-                        {list.visibility === "household" ? "Household list" : "Private list"}
-                      </span>
-                    </p>
-                  </div>
+                        {selectedListId === list.id && (
+                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                            Active
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Visibility: {" "}
+                        <span
+                          className={
+                            list.visibility === "household"
+                              ? "font-medium text-emerald-700"
+                              : "font-medium text-slate-600"
+                          }
+                        >
+                          {list.visibility === "household" ? "Household list" : "Private list"}
+                        </span>
+                      </p>
+                    </div>
 
-                  {/* Action buttons - separate row on mobile, inline on desktop */}
-                  <div className="mt-3 pt-3 border-t md:mt-0 md:pt-0 md:border-t-0 flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="text-[11px] px-2.5 py-1.5 border rounded-md hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
-                      onClick={() => {
-                        setEditingListId(list.id);
-                        setEditName(list.name);
-                        setEditYear(list.year);
-                        setEditVisibility(list.visibility);
-                      }}
-                    >
-                      <span>✏️</span>
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="text-[11px] px-2.5 py-1.5 border rounded-md hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
-                      onClick={() => onToggleVisibility(list.id, list.visibility)}
-                      title="Toggle between household and private"
-                    >
-                      <span>{list.visibility === "household" ? "👥" : "🔒"}</span>
-                      <span>Visibility</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="text-[11px] px-2.5 py-1.5 border rounded-md hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
-                      onClick={() => onDuplicateList(list)}
-                      title="Duplicate to next year"
-                    >
-                      <span>➕</span>
-                      <span>Duplicate</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="text-[11px] px-2.5 py-1.5 border border-red-500 text-red-600 rounded-md hover:bg-red-50 flex items-center gap-1 cursor-pointer"
-                      onClick={() => {
-                        if (window.confirm(`Delete list "${list.name}" and all its people/gifts?`)) {
-                          onDeleteList(list.id);
-                        }
-                      }}
-                    >
-                      <span>🗑️</span>
-                      <span className="hidden sm:inline">Delete</span>
-                    </button>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <ListActionsMenu
+                        visibility={list.visibility}
+                        onEdit={() => {
+                          setEditingListId(list.id);
+                          setEditName(list.name);
+                          setEditYear(list.year);
+                          setEditVisibility(list.visibility);
+                        }}
+                        onToggleVisibility={() => onToggleVisibility(list.id, list.visibility)}
+                        onDuplicate={() => onDuplicateList(list)}
+                        onDelete={() => {
+                          if (window.confirm(`Delete list "${list.name}" and all its people/gifts?`)) {
+                            onDeleteList(list.id);
+                          }
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
