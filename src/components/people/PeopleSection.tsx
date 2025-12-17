@@ -1,4 +1,8 @@
 import React from "react";
+import { supabase } from "../../lib/supabaseClient";
+import { offlineUpdate, offlineDelete } from "../../lib/offlineSupabase";
+import type { Gift } from "../../types";
+import { GiftEditModal } from "../gifts/GiftEditModal";
 import type { List, Person } from "../../types";
 import type { ListTotals } from "../../hooks/useListTotals";
 import { AddPersonForm } from "../people/AddPersonForm";
@@ -48,6 +52,97 @@ export function PeopleSection({
       person.name.toLowerCase().includes(query)
     );
   }, [people, searchQuery]);
+
+  // Fetch gifts for all people in one query for performance
+  const [giftsMap, setGiftsMap] = React.useState<Record<string, Gift[]>>({});
+
+  const loadGiftsForPeople = React.useCallback(async () => {
+    if (!people || people.length === 0) {
+      setGiftsMap({});
+      return;
+    }
+
+    // start loading gifts
+
+    try {
+      const personIds = people.map((p) => p.id);
+      const { data, error } = await supabase
+        .from("gifts")
+        .select("*")
+        .in("person_id", personIds)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("Error loading gifts for people", error);
+        setGiftsMap({});
+      } else {
+        const map: Record<string, Gift[]> = {};
+        (data ?? []).forEach((g: Gift) => {
+          if (!map[g.person_id]) map[g.person_id] = [];
+          map[g.person_id].push(g);
+        });
+        setGiftsMap(map);
+      }
+    } catch (err: any) {
+      console.error("Unexpected error loading gifts", err);
+      setGiftsMap({});
+    }
+  }, [people]);
+
+  React.useEffect(() => {
+    loadGiftsForPeople();
+  }, [loadGiftsForPeople]);
+
+  // Modal state for editing a gift
+  const [editingGift, setEditingGift] = React.useState<Gift | null>(null);
+
+  const handleUpdateGift = async (id: string, updates: Partial<Gift>) => {
+    // optimistic update
+    setGiftsMap((prev) => {
+      const next = { ...prev };
+      for (const pid of Object.keys(next)) {
+        next[pid] = next[pid].map((g) => (g.id === id ? { ...g, ...updates } : g));
+      }
+      return next;
+    });
+
+    const { data, error } = await offlineUpdate<Gift>("gifts", id, updates);
+    if (error) {
+      console.error("Error updating gift", error);
+      // reload gifts on error
+      await loadGiftsForPeople();
+      throw error;
+    }
+
+    // merge returned data if available
+    if (data) {
+      setGiftsMap((prev) => {
+        const next = { ...prev };
+        for (const pid of Object.keys(next)) {
+          next[pid] = next[pid].map((g) => (g.id === id ? data : g));
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleDeleteGift = async (id: string) => {
+    // optimistic remove
+    setGiftsMap((prev) => {
+      const next: Record<string, Gift[]> = {};
+      for (const pid of Object.keys(prev)) {
+        next[pid] = prev[pid].filter((g) => g.id !== id);
+      }
+      return next;
+    });
+
+    const { error } = await offlineDelete("gifts", id);
+    if (error) {
+      console.error("Error deleting gift", error);
+      await loadGiftsForPeople();
+      throw error;
+    }
+  };
 
   return (
     <section className="bg-white rounded-xl shadow-sm p-4">
@@ -127,10 +222,23 @@ export function PeopleSection({
                   await onDeletePerson(person.id);
                 }
               }}
+              gifts={giftsMap[person.id] || []}
+              onOpenGift={(g) => setEditingGift(g)}
             />
           ))}
         </ul>
       </div>
+      <GiftEditModal
+        isOpen={!!editingGift}
+        gift={editingGift}
+        onClose={() => setEditingGift(null)}
+        onUpdate={async (id, updates) => {
+          await handleUpdateGift(id, updates);
+        }}
+        onDelete={async (id) => {
+          await handleDeleteGift(id);
+        }}
+      />
     </section>
   );
 }
